@@ -6,6 +6,9 @@ use winit::{
     window::WindowBuilder,
 };
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
     #[cfg(target_arch = "wasm32")]
@@ -24,6 +27,25 @@ pub async fn run() {
     // Window
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        // Winit prevents sizing with CSS, so we have to set
+        // the size manually when on web.
+        window.set_inner_size(winit::dpi::PhysicalSize::new(1280, 960));
+
+        use winit::platform::web::WindowExtWebSys;
+        web_sys::window()
+            .and_then(|win| win.document())
+            .and_then(|doc| {
+                let dst = doc.get_element_by_id("soundy")?;
+                let canvas = web_sys::Element::from(window.canvas());
+                dst.append_child(&canvas).ok()?;
+                Some(())
+            })
+            .expect("Couldn't append canvas to document body.");
+    }
+
     let render = view::RenderState::new(&window).await;
 
     event_loop.run(move |event, _, control_flow| match event {

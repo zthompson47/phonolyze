@@ -6,6 +6,7 @@ pub struct RenderState {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
+    texture: wgpu::Texture,
 }
 
 impl RenderState {
@@ -57,6 +58,22 @@ impl RenderState {
 
         surface.configure(&device, &config);
 
+        let texture_size = wgpu::Extent3d {
+            width: size.width,
+            height: size.height,
+            depth_or_array_layers: 1,
+        };
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Texture"),
+            size: texture_size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: config.format,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &config.view_formats,
+        });
+
         RenderState {
             size,
             scale_factor,
@@ -64,6 +81,7 @@ impl RenderState {
             device,
             queue,
             config,
+            texture,
         }
     }
 }
