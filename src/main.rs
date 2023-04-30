@@ -1,3 +1,3 @@
 fn main() {
-    pollster::block_on(soundy::run())
+    pollster::block_on(soundy::main())
 }

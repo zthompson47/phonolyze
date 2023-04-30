@@ -1,5 +1,7 @@
+use instant::{Duration, Instant};
+
 #[allow(unused)]
-pub struct RenderState {
+pub struct RenderView {
     size: winit::dpi::PhysicalSize<u32>,
     scale_factor: f32,
     pub surface: wgpu::Surface,
@@ -7,9 +9,10 @@ pub struct RenderState {
     pub queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     texture: wgpu::Texture,
+    pub last_updated: Instant,
 }
 
-impl RenderState {
+impl RenderView {
     pub async fn new(window: &winit::window::Window) -> Self {
         let size = window.inner_size();
         let scale_factor = window.scale_factor() as f32;
@@ -73,8 +76,9 @@ impl RenderState {
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             view_formats: &config.view_formats,
         });
+        let last_updated = Instant::now();
 
-        RenderState {
+        RenderView {
             size,
             scale_factor,
             surface,
@@ -82,6 +86,47 @@ impl RenderState {
             queue,
             config,
             texture,
+            last_updated,
         }
     }
+
+    pub fn update(&self, dt: Duration) {
+        let _step = dt.as_secs_f32();
+    }
+
+    pub fn render(&self, frame: wgpu::SurfaceTexture) {
+        let view = frame
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
+        {
+            let mut _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.0,
+                            g: 0.3,
+                            b: 0.5,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            });
+
+        }
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+        frame.present();
+    }
+
+    //fn load_background_image(data: &[f32]) {}
 }

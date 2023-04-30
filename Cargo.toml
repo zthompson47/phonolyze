@@ -7,17 +7,16 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+env_logger = "0.10.0"
+instant = "0.1.12"
+log = "0.4.17"
 pollster = "0.3.0"
-tracing = "0.1.37"
-tracing-subscriber = "0.3.17"
 wgpu = "0.16.0"
 winit = "0.28.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.7"
 console_log = "1.0.0"
-log = "0.4.17"
-#reqwest = { version = "0.11" }
 wgpu = { version = "0.16", features = ["webgl"]}
 wasm-bindgen = "0.2.84"
 wasm-bindgen-futures = "0.4.34"
