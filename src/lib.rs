@@ -1,5 +1,7 @@
 mod event;
+mod file;
 mod render;
+mod texture;
 
 use winit::{event_loop::EventLoop, window::WindowBuilder};
 
@@ -10,15 +12,18 @@ use wasm_bindgen::prelude::*;
 pub async fn main() {
     init_logging();
 
-    // Window
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = WindowBuilder::new()
+        .with_maximized(true)
+        .build(&event_loop)
+        .unwrap();
 
     #[cfg(target_arch = "wasm32")]
     {
         // Winit prevents sizing with CSS, so we have to set
         // the size manually when on web.
-        window.set_inner_size(winit::dpi::PhysicalSize::new(1280, 960));
+        //window.set_inner_size(winit::dpi::PhysicalSize::new(1280, 960));
+        window.set_inner_size(winit::dpi::PhysicalSize::new(2560, 960));
 
         use winit::platform::web::WindowExtWebSys;
         web_sys::window()
@@ -33,10 +38,7 @@ pub async fn main() {
     }
 
     let render_view = render::RenderView::new(&window).await;
-    let mut event_handler = event::EventHandler {
-        window,
-        render_view,
-    };
+    let mut event_handler = event::EventHandler::new(window, render_view);
 
     event_loop.run(move |event, _, control_flow| {
         event_handler.handle_event(event, control_flow);
@@ -51,6 +53,7 @@ fn init_logging() {
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
+        std::env::set_var("RUST_LOG", "info");
         env_logger::init();
     }
     log::info!("Logging initiated...");

@@ -1,4 +1,6 @@
-use instant::{Duration, Instant};
+use winit::dpi::PhysicalSize;
+
+use crate::{file::load_image, texture::ImageTexture};
 
 #[allow(unused)]
 pub struct RenderView {
@@ -8,8 +10,10 @@ pub struct RenderView {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
-    texture: wgpu::Texture,
-    pub last_updated: Instant,
+    background: ImageTexture,
+    shader: wgpu::ShaderModule,
+    pipeline_layout: wgpu::PipelineLayout,
+    pipeline: wgpu::RenderPipeline,
 }
 
 impl RenderView {
@@ -20,9 +24,11 @@ impl RenderView {
             backends: wgpu::Backends::all(),
             ..wgpu::InstanceDescriptor::default()
         });
+
         // SAFETY: `View` is created in the main thread and `window` remains valid
         // for the lifetime of `surface`.
         let surface = unsafe { instance.create_surface(&window).unwrap() };
+
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -31,6 +37,7 @@ impl RenderView {
             })
             .await
             .unwrap();
+
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
@@ -48,6 +55,7 @@ impl RenderView {
             )
             .await
             .unwrap();
+
         let capabilities = surface.get_capabilities(&adapter);
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -61,22 +69,52 @@ impl RenderView {
 
         surface.configure(&device, &config);
 
-        let texture_size = wgpu::Extent3d {
-            width: size.width,
-            height: size.height,
-            depth_or_array_layers: 1,
-        };
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("Texture"),
-            size: texture_size,
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: config.format,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            view_formats: &config.view_formats,
+        let background_image = load_image("images/noise3.png").await;
+        //let background_image = load_image("images/baba.png").await;
+        let background =
+            ImageTexture::new(Some("Background Image"), background_image, &device, &queue);
+
+        let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[&background.bind_group_layout],
+            push_constant_ranges: &[],
         });
-        let last_updated = Instant::now();
+
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Background"),
+            layout: Some(&pipeline_layout),
+
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: "vs_main",
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: "fs_main",
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: config.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                //targets: &[Some(config.format.into())],
+            }),
+
+            primitive: wgpu::PrimitiveState {
+                front_face: wgpu::FrontFace::Cw,
+                ..Default::default()
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+        });
+
+        //let egui_context = egui::Context::default();
+        //let egui_renderer = egui_wgpu::Renderer::new(&device, config.format, 1, 0);
+
+        //let noise = simdnoise::NoiseBuilder::fbm_1d(256).generate_scaled(0.0, 1.0);
 
         RenderView {
             size,
@@ -85,13 +123,31 @@ impl RenderView {
             device,
             queue,
             config,
-            texture,
-            last_updated,
+            background,
+            shader,
+            pipeline_layout,
+            pipeline,
         }
     }
 
-    pub fn update(&self, dt: Duration) {
-        let _step = dt.as_secs_f32();
+    pub fn update(&mut self, delta: instant::Duration) {
+        let _step = delta.as_secs_f32();
+        /*
+        let shader = self
+            .device
+            .create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
+        self.pipeline.vertex.module = &shader;
+        */
+    }
+
+    pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
+        if new_size.width > 0 && new_size.height > 0 {
+            self.background.resize(new_size, &self.queue);
+            self.size = new_size;
+            self.config.width = new_size.width;
+            self.config.height = new_size.height;
+            self.surface.configure(&self.device, &self.config);
+        }
     }
 
     pub fn render(&self, frame: wgpu::SurfaceTexture) {
@@ -104,7 +160,7 @@ impl RenderView {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
         {
-            let mut _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
@@ -122,11 +178,12 @@ impl RenderView {
                 depth_stencil_attachment: None,
             });
 
+            render_pass.set_bind_group(0, &self.background.bind_group, &[]);
+            render_pass.set_pipeline(&self.pipeline);
+            render_pass.draw(0..6, 0..1);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
         frame.present();
     }
-
-    //fn load_background_image(data: &[f32]) {}
 }

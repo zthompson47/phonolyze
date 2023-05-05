@@ -9,9 +9,18 @@ use crate::render::RenderView;
 pub struct EventHandler {
     pub window: Window,
     pub render_view: RenderView,
+    last_updated: instant::Instant,
 }
 
 impl EventHandler {
+    pub fn new(window: Window, render_view: RenderView) -> Self {
+        EventHandler {
+            window,
+            render_view,
+            last_updated: instant::Instant::now(),
+        }
+    }
+
     pub fn handle_event(&mut self, event: Event<()>, control_flow: &mut ControlFlow) {
         match event {
             Event::WindowEvent {
@@ -28,13 +37,19 @@ impl EventHandler {
                 }
             }
 
+            Event::WindowEvent {
+                event: WindowEvent::Resized(physical_size),
+                window_id,
+            } if window_id == self.window.id() => {
+                self.render_view.resize(physical_size);
+            }
+
             Event::MainEventsCleared => {
                 let now = instant::Instant::now();
-                let dt = now - self.render_view.last_updated;
+                let delta = now - self.last_updated;
 
-                self.render_view.last_updated = now;
-                self.render_view.update(dt);
-
+                self.last_updated = now;
+                self.render_view.update(delta);
                 self.window.request_redraw();
             }
 
