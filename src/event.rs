@@ -54,9 +54,7 @@ impl EventHandler {
             }
 
             Event::RedrawRequested(window_id) if window_id == self.window.id() => {
-                let frame = self.render_view.surface.get_current_texture().unwrap();
-
-                self.render_view.render(frame);
+                self.render_view.render();
             }
 
             _ => (),

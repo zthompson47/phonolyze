@@ -1,6 +1,8 @@
+#![allow(unused)]
+use image::Rgba;
 use winit::dpi::PhysicalSize;
 
-use crate::{file::load_image, texture::ImageTexture};
+use crate::{audio::AudioFile, fft::stft, file, texture::TiledBackgroundPass};
 
 #[allow(unused)]
 pub struct RenderView {
@@ -10,10 +12,7 @@ pub struct RenderView {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
-    background: ImageTexture,
-    shader: wgpu::ShaderModule,
-    pipeline_layout: wgpu::PipelineLayout,
-    pipeline: wgpu::RenderPipeline,
+    background: TiledBackgroundPass,
 }
 
 impl RenderView {
@@ -69,52 +68,85 @@ impl RenderView {
 
         surface.configure(&device, &config);
 
-        let background_image = load_image("images/noise3.png").await;
-        //let background_image = load_image("images/baba.png").await;
-        let background =
-            ImageTexture::new(Some("Background Image"), background_image, &device, &queue);
+        //let background_image = file::load_image("images/noise3.png").await;
 
-        let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
-
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None,
-            bind_group_layouts: &[&background.bind_group_layout],
-            push_constant_ranges: &[],
-        });
-
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Background"),
-            layout: Some(&pipeline_layout),
-
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &[],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                //targets: &[Some(config.format.into())],
-            }),
-
-            primitive: wgpu::PrimitiveState {
-                front_face: wgpu::FrontFace::Cw,
-                ..Default::default()
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview: None,
-        });
+        /*let background_image = file::load_image("images/baba.png").await;
+        let background = TiledBackgroundPass::new(
+            Some("Background Image"),
+            background_image,
+            &device,
+            &queue,
+            &config,
+        );*/
 
         //let egui_context = egui::Context::default();
         //let egui_renderer = egui_wgpu::Renderer::new(&device, config.format, 1, 0);
 
         //let noise = simdnoise::NoiseBuilder::fbm_1d(256).generate_scaled(0.0, 1.0);
+
+        //let mut audio = AudioFile::open("/home/zach/ph2022-12-28S1t.09.flac").unwrap();
+        let mut audio = AudioFile::open("media/_song.flac").await.unwrap();
+        //let mut audio = AudioFile::open("media/jtree_stream.m4a").await.unwrap();
+        /*let mut audio = AudioFile::open(
+            "/home/zach/tunes/The Losing End (When You're On) (2009 Remaster)-3Bd-dDZMoX4.flac",
+        )
+        .unwrap();*/
+
+        let signal = audio.dump_mono();
+        dbg!(signal.len());
+        //let analysis = analyze(&signal[0..1024 * 4000], "hamming", 1024, 1024);
+        //let analysis = stft(&signal[0..1024 * 4000], "hamming", 2048, 2048);
+        let analysis = stft(&signal, "hamming", 2048, 2048);
+        dbg!(analysis.0.len());
+
+        use ordered_float::OrderedFloat;
+        dbg!(analysis.0.iter().map(|x| OrderedFloat(x[0])).min());
+        dbg!(analysis.0.iter().map(|x| OrderedFloat(x[0])).max());
+
+        //let audio_info = audio.info();
+
+        //use plotters::prelude::*;
+
+        dbg!(analysis.0.len() as u32);
+        dbg!(analysis.0[0].len() as u32);
+
+        let background_image = image::RgbaImage::from_fn(
+            analysis.0.len() as u32,
+            analysis.0[0].len() as u32,
+            |x, y| {
+                let val = analysis.0[x as usize][y as usize];
+                //dbg!(val);
+                image::Rgba::from([(val * 60.) as u8, (val * 60.) as u8, (val * 60.) as u8, 255])
+            },
+        );
+
+        /*let background_image = noise::NoiseKernelV1 {
+            out_width: 1400,
+            out_height: 1400,
+            scale_x: 10,  // 30, // 10
+            scale_y: 280, //150, // 10
+            ..noise::NoiseKernelV1::default()
+        }
+        .make_noise(|tl, _bl, tr, br, d_tl, _d_bl, d_tr, d_br| {
+            let r = tl.0[0] as f32 * d_tl;
+            let g = br.0[0] as f32 * d_br;
+            let b = tr.0[0] as f32 * d_tr;
+            let a = br.0[0] as f32;
+            Rgba::from([
+                r.floor() as u8,
+                g.floor() as u8,
+                b.floor() as u8,
+                a.floor() as u8,
+            ])
+        });*/
+
+        let background = TiledBackgroundPass::new(
+            Some("Background Image"),
+            image::DynamicImage::ImageRgba8(background_image),
+            &device,
+            &queue,
+            &config,
+        );
 
         RenderView {
             size,
@@ -124,10 +156,18 @@ impl RenderView {
             queue,
             config,
             background,
-            shader,
-            pipeline_layout,
-            pipeline,
         }
+    }
+
+    pub async fn _update_background(&mut self, filename: &str) {
+        let background_image = file::load_image(filename).await;
+        let _background = TiledBackgroundPass::new(
+            Some("Background Image"),
+            background_image,
+            &self.device,
+            &self.queue,
+            &self.config,
+        );
     }
 
     pub fn update(&mut self, delta: instant::Duration) {
@@ -150,7 +190,8 @@ impl RenderView {
         }
     }
 
-    pub fn render(&self, frame: wgpu::SurfaceTexture) {
+    pub fn render(&mut self) {
+        let frame = self.surface.get_current_texture().unwrap();
         let view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -159,29 +200,7 @@ impl RenderView {
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.3,
-                            b: 0.5,
-                            a: 1.0,
-                        }),
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-            });
-
-            render_pass.set_bind_group(0, &self.background.bind_group, &[]);
-            render_pass.set_pipeline(&self.pipeline);
-            render_pass.draw(0..6, 0..1);
-        }
+        self.background.render(&view, &mut encoder);
 
         self.queue.submit(std::iter::once(encoder.finish()));
         frame.present();

@@ -2,20 +2,22 @@ use image::GenericImageView;
 use wgpu::util::DeviceExt;
 use winit::dpi::PhysicalSize;
 
-pub struct ImageTexture {
+pub struct TiledBackgroundPass {
     pub image: image::DynamicImage,
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
     buffer: wgpu::Buffer,
     scale: [f32; 4],
+    pipeline: wgpu::RenderPipeline,
 }
 
-impl ImageTexture {
+impl TiledBackgroundPass {
     pub fn new(
         label: Option<&str>,
         image: image::DynamicImage,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
+        config: &wgpu::SurfaceConfiguration,
     ) -> Self {
         let dimensions = image.dimensions();
         let size = wgpu::Extent3d {
@@ -116,17 +118,55 @@ impl ImageTexture {
                 wgpu::BindGroupEntry {
                     binding: 2,
                     resource: buffer.as_entire_binding(),
-                }
+                },
             ],
             label,
         });
 
-        ImageTexture {
+        let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[&bind_group_layout],
+            push_constant_ranges: &[],
+        });
+
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Background"),
+            layout: Some(&pipeline_layout),
+
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: "vs_main",
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: "fs_main",
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: config.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                //targets: &[Some(config.format.into())],
+            }),
+
+            primitive: wgpu::PrimitiveState {
+                front_face: wgpu::FrontFace::Cw,
+                ..Default::default()
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+        });
+
+        TiledBackgroundPass {
             image,
             bind_group_layout,
             bind_group,
             buffer,
             scale,
+            pipeline,
         }
     }
 
@@ -135,5 +175,29 @@ impl ImageTexture {
         self.scale[1] = new_size.height as f32 / self.image.dimensions().1 as f32;
         self.scale[2] = new_size.height as f32;
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.scale]));
+    }
+
+    pub fn render(&mut self, view: &wgpu::TextureView, encoder: &mut wgpu::CommandEncoder) {
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Render Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 0.0,
+                        g: 0.3,
+                        b: 0.5,
+                        a: 1.0,
+                    }),
+                    store: true,
+                },
+            })],
+            depth_stencil_attachment: None,
+        });
+
+        render_pass.set_bind_group(0, &self.bind_group, &[]);
+        render_pass.set_pipeline(&self.pipeline);
+        render_pass.draw(0..6, 0..1);
     }
 }

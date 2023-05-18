@@ -1,4 +1,6 @@
+mod audio;
 mod event;
+mod fft;
 mod file;
 mod render;
 mod texture;
@@ -10,7 +12,15 @@ use wasm_bindgen::prelude::*;
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn main() {
-    init_logging();
+    #[cfg(target_arch = "wasm32")]
+    {
+        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+        console_log::init_with_level(log::Level::Info).unwrap();
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        env_logger::init();
+    }
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
@@ -22,8 +32,7 @@ pub async fn main() {
     {
         // Winit prevents sizing with CSS, so we have to set
         // the size manually when on web.
-        //window.set_inner_size(winit::dpi::PhysicalSize::new(1280, 960));
-        window.set_inner_size(winit::dpi::PhysicalSize::new(2560, 960));
+        window.set_inner_size(winit::dpi::PhysicalSize::new(1280, 960));
 
         use winit::platform::web::WindowExtWebSys;
         web_sys::window()
@@ -43,18 +52,4 @@ pub async fn main() {
     event_loop.run(move |event, _, control_flow| {
         event_handler.handle_event(event, control_flow);
     });
-}
-
-fn init_logging() {
-    #[cfg(target_arch = "wasm32")]
-    {
-        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-        console_log::init_with_level(log::Level::Info).unwrap();
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        std::env::set_var("RUST_LOG", "info");
-        env_logger::init();
-    }
-    log::info!("Logging initiated...");
 }
