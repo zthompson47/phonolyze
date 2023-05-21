@@ -51,7 +51,8 @@ fn dft(signal: &[f32], window: &[f32]) -> (Vec<f32>, Vec<f32>) {
         .iter()
         .zip(window.iter())
         //.map(|(x, y)| x * y / sum)
-        .map(|(x, y)| (x + 1.) * y / 2.)
+        //.map(|(x, y)| (x + 1.) * y / 2.) // introduces dc offset
+        .map(|(x, y)| x * y)
         .map(|x| Complex { re: x, im: 0.0 })
         .collect::<Vec<_>>();
     /*

@@ -130,6 +130,30 @@ impl AudioFile {
         });
         writer.finalize().unwrap();
     }
+
+    /*
+    pub fn play(&self) {
+        use cpal::traits::{DeviceTrait, HostTrait};
+        let audio_device = cpal::default_host().default_output_device().unwrap();
+        let audio_config = audio_device.default_output_config().unwrap();
+        let mut player = match audio_config.sample_format() {
+            cpal::SampleFormat::I8 => AudioPlayer::new::<i8>(
+                &audio_device,
+                &audio_config.into(),
+                cli.latency_ms,
+                cli.chunk_size,
+            ),
+            cpal::SampleFormat::F32 => AudioPlayer::new::<f32>(
+                &audio_device,
+                &audio_config.into(),
+                cli.latency_ms,
+                cli.chunk_size,
+            ),
+            _ => panic!("unsupported format"),
+        }
+        .unwrap();
+    }
+    */
 }
 
 pub enum CopyMethod {
