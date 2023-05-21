@@ -9,8 +9,10 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 anyhow = "1.0.71"
-bytemuck = "1.13.1"
+bytemuck = { version = "1.13.1", features = ["derive"] }
 cfg-if = "1.0.0"
+clap = { version = "4.3.0", features = ["derive"] }
+colorgrad = "0.6.2"
 env_logger = "0.10.0"
 hound = "3.5.0"
 image = "0.24.6"

@@ -29,11 +29,17 @@ impl EventHandler {
             } if window_id == self.window.id() => *control_flow = ControlFlow::Exit,
 
             Event::WindowEvent {
-                event: WindowEvent::KeyboardInput { input, .. },
+                event: event @ WindowEvent::KeyboardInput { .. },
                 window_id,
             } if window_id == self.window.id() => {
-                if input.virtual_keycode == Some(VirtualKeyCode::Escape) {
-                    *control_flow = ControlFlow::Exit
+                self.render_view.layers.iter_mut().for_each(|layer| {
+                    layer.handle_event(&event, &self.render_view.queue);
+                });
+
+                if let WindowEvent::KeyboardInput { input, .. } = event {
+                    if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
+                        *control_flow = ControlFlow::Exit
+                    }
                 }
             }
 

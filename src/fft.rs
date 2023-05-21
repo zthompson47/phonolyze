@@ -1,5 +1,6 @@
 use std::f32::consts::PI;
 
+use ordered_float::OrderedFloat;
 use rustfft::num_complex::Complex;
 
 pub fn get_window(_name: &'static str, size: usize) -> Vec<f32> {
@@ -18,7 +19,6 @@ pub fn stft(
     window_size: usize,
     hop_size: usize,
 ) -> (Vec<Vec<f32>>, Vec<Vec<f32>>) {
-    use ordered_float::OrderedFloat;
     dbg!(
         signal.iter().map(|x| OrderedFloat(*x)).max(),
         signal.iter().map(|x| OrderedFloat(*x)).min()
@@ -51,15 +51,16 @@ fn dft(signal: &[f32], window: &[f32]) -> (Vec<f32>, Vec<f32>) {
         .iter()
         .zip(window.iter())
         //.map(|(x, y)| x * y / sum)
-        .map(|(x, y)| x * y)
+        .map(|(x, y)| (x + 1.) * y / 2.)
         .map(|x| Complex { re: x, im: 0.0 })
         .collect::<Vec<_>>();
-    //dbg!(&windowed.len());
-    /*use ordered_float::OrderedFloat;
+    /*
+    dbg!(&windowed.len());
     dbg!(
         windowed.iter().map(|x| OrderedFloat(x.re)).max(),
         windowed.iter().map(|x| OrderedFloat(x.re)).min()
-    );*/
+    );
+    */
 
     let size = window.len();
     let positive_spectrum = (size / 2) + 1;
@@ -71,17 +72,37 @@ fn dft(signal: &[f32], window: &[f32]) -> (Vec<f32>, Vec<f32>) {
     left.copy_from_slice(&windowed[half_window_floor..]);
     right.copy_from_slice(&windowed[..half_window_floor]);
     //dbg!(&fft_buffer.len());
-
     let mut planner = rustfft::FftPlanner::new();
     let fft = planner.plan_fft_forward(size);
     fft.process(&mut fft_buffer);
 
-    let positive_side = fft_buffer[..positive_spectrum]
+    /*
+    dbg!(
+        size,
+        fft_buffer.iter().map(|x| OrderedFloat(x.re)).min(),
+        fft_buffer.iter().map(|x| OrderedFloat(x.re)).max(),
+    );
+    */
+
+    let positive_side: Vec<_> = fft_buffer[..positive_spectrum]
         .iter()
-        .map(|x| 20. * x.re.abs().log10())
-        //.map(|x| x.re)
+        //.map(|x| 20. * x.re.abs().log10())
+        //.map(|x| (x.re.abs() * 100.).clamp(0.0, 1.0) / size as f32)
         //.map(|x| x.re.powi(2) / size as f32)
-        .collect::<Vec<_>>();
+        //.map(|x| x.re * 2. / size as f32)
+        //.map(|x| x.re / (size as f32).sqrt())
+        //.map(|x| x.re.abs() / (size as f32).powi(2))
+        //.map(|x| x.re.abs())
+        .map(|x| 20. * (x.norm() * 2. / size as f32).log10() )
+        .collect();
+
+    //dbg!(&positive_side);
+    /*
+    dbg!(
+        positive_side.iter().map(|x| OrderedFloat(*x)).min(),
+        positive_side.iter().map(|x| OrderedFloat(*x)).max(),
+    );
+    */
 
     (positive_side.to_vec(), vec![])
 }

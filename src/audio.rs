@@ -1,21 +1,20 @@
-use std::{collections::HashMap, fs::File, path::Path};
+#![allow(unused)]
+use std::{collections::HashMap, path::Path};
 
 use anyhow::{Error, Result};
-use cfg_if::cfg_if;
 use symphonia::{
     core::{
         audio::SampleBuffer,
         codecs::{Decoder, DecoderOptions},
         errors::Error::DecodeError,
         formats::{FormatOptions, FormatReader},
-        io::MediaSourceStream,
         meta::MetadataOptions,
         probe::Hint,
     },
     default::{get_codecs, get_probe},
 };
 
-use crate::file::load_sound;
+use crate::file;
 
 pub struct AudioFile {
     format: Box<dyn FormatReader>,
@@ -41,22 +40,13 @@ impl AudioFile {
     }
 
     pub async fn open(path: &str) -> Result<Self> {
-        /*
-        cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
-            } else {
-                let src = Box::new(File::open(path)?);
-            }
-        }
-        let mss = MediaSourceStream::new(src, Default::default());
-        */
-        let mss = load_sound(path).await;
+        let source = file::load_sound(path).await;
         let hint = Hint::new();
         let format_opts: FormatOptions = Default::default();
         let metadata_opts: MetadataOptions = Default::default();
         let decoder_opts: DecoderOptions = Default::default();
         let format = get_probe()
-            .format(&hint, mss, &format_opts, &metadata_opts)
+            .format(&hint, source, &format_opts, &metadata_opts)
             .unwrap()
             .format;
         let track = format
@@ -110,17 +100,21 @@ impl AudioFile {
     pub fn dump_mono(&mut self) -> Vec<f32> {
         let mut result = Vec::new();
 
+        // Just grab the left channel.
         while let Ok(buf) = self.next_sample(CopyMethod::Planar) {
             if let Some(buf) = buf {
-                result.append(&mut Vec::from(buf.samples()));
+                let mut samples = Vec::from(buf.samples());
+                let len = samples.len();
+                result.append(&mut Vec::from(&mut samples[0..len]));
             }
         }
+
         result
     }
 
     pub fn write_wav(&self, filename: &str, signal: &[f32], sample_rate: u32) {
         let mut writer = hound::WavWriter::create(
-            std::path::Path::new(&filename),
+            Path::new(&filename),
             hound::WavSpec {
                 channels: 1,
                 sample_rate,

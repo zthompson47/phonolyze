@@ -1,4 +1,4 @@
-use cfg_if::cfg_if;
+//use cfg_if::cfg_if;
 use symphonia::core::io::MediaSourceStream;
 
 #[cfg(target_arch = "wasm32")]
@@ -12,7 +12,7 @@ fn format_url(file_name: &str) -> reqwest::Url {
 
 pub async fn load_image(file_name: &str) -> image::DynamicImage {
     let data = {
-        cfg_if! {
+        cfg_if::cfg_if! {
             if #[cfg(target_arch = "wasm32")] {
                 let url = format_url(file_name);
 
@@ -36,7 +36,7 @@ pub async fn load_image(file_name: &str) -> image::DynamicImage {
 }
 
 pub async fn load_sound(file_name: &str) -> MediaSourceStream {
-    cfg_if! {
+    cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
             let url = format_url(file_name);
             let data = reqwest::get(url)
