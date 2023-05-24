@@ -1,5 +1,5 @@
 [package]
-name = "soundy"
+name = "phonolyze"
 version = "0.1.0"
 edition = "2021"
 description = "Visualize sound files"
