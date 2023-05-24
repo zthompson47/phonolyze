@@ -19,7 +19,7 @@ hound = "3.5.0"
 image = "0.24.6"
 instant = "0.1.12"
 log = "0.4.17"
-noise = { path = "../noise" }
+noize = { path = "../noize" }
 ordered-float = "3.7.0"
 plotters = "0.3.4"
 pollster = "0.3.0"
