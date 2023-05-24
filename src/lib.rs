@@ -3,6 +3,7 @@ mod event;
 mod fft;
 mod file;
 mod render;
+mod scale;
 mod texture;
 mod vertex;
 
@@ -31,7 +32,6 @@ pub async fn main() {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
             console_log::init_with_level(log::Level::Info).unwrap();
         } else {
-            //env_logger::init();
             let _log = tailog::init();
         }
     }
