@@ -19,14 +19,22 @@ hound = "3.5.0"
 image = "0.24.6"
 instant = "0.1.12"
 log = "0.4.17"
-noise = { version = "*", path = "/home/zach/projects/wgpu/noise" }
+noise = { path = "../noise" }
 ordered-float = "3.7.0"
 plotters = "0.3.4"
 pollster = "0.3.0"
 rustfft = "6.1.0"
 symphonia = { version = "0.5.2", features = ["all"] }
+tailog = { path = "../tailog" }
 wgpu = "0.16.0"
 winit = "0.28.3"
+#egui = "0.21.0"
+#egui-wgpu = "0.21.0"
+#egui-winit = "0.21.1"
+#egui = { path = "/home/zach/cratesio/egui/crates/egui" }
+#egui-wgpu = { path = "/home/zach/cratesio/egui/crates/egui-wgpu" }
+#egui-winit = { path = "/home/zach/cratesio/egui/crates/egui-winit" }
+#easer = "0.3.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.7"
@@ -37,9 +45,9 @@ wasm-bindgen = "0.2.84"
 wasm-bindgen-futures = "0.4.34"
 web-sys = { version = "0.3.61", features = [
     "Document",
-    "Window",
     "Element",
     "Location",
+    "Window",
 ]}
 
 

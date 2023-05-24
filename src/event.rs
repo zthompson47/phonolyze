@@ -37,9 +37,9 @@ impl EventHandler {
                 });
 
                 if let WindowEvent::KeyboardInput { input, .. } = event {
-                    if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
+                    if let Some(VirtualKeyCode::Escape | VirtualKeyCode::Q) = input.virtual_keycode {
                         *control_flow = ControlFlow::Exit
-                    }
+                  }
                 }
             }
 

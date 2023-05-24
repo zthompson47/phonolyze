@@ -1,18 +1,18 @@
 use image::{Rgba, RgbaImage};
 use winit::{dpi::PhysicalSize, event::WindowEvent};
 
-use crate::{
-    audio::AudioFile,
-    fft::stft,
-    file,
-    texture::{ShowAnalysisPass, TiledBackgroundPass},
-    Cli,
-};
+use crate::{audio::AudioFile, fft::stft, file::load_image, texture::ImageLayerPass, Cli};
 
 pub trait Layer {
     fn render(&mut self, view: &wgpu::TextureView, encoder: &mut wgpu::CommandEncoder);
     fn resize(&mut self, new_size: PhysicalSize<u32>, queue: &wgpu::Queue);
     fn handle_event(&mut self, event: &WindowEvent, queue: &wgpu::Queue);
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum LayerMode {
+    Background,
+    AlphaBlend,
 }
 
 pub struct RenderView {
@@ -49,15 +49,11 @@ impl RenderView {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    //features: wgpu::Features::empty(),
-                    features: wgpu::Features::PUSH_CONSTANTS,
-
+                    features: wgpu::Features::empty(),
+                    //features: wgpu::Features::PUSH_CONSTANTS,
                     #[cfg(target_arch = "wasm32")]
-                    //limits: wgpu::Limits::downlevel_webgl2_defaults(),
                     limits: wgpu::Limits::downlevel_webgl2_defaults()
                         .using_resolution(wgpu::Limits::default()),
-                    //limits: wgpu::Limits::downlevel_defaults(), // doesn't work in chrome
-
                     #[cfg(not(target_arch = "wasm32"))]
                     limits: wgpu::Limits::default(),
                 },
@@ -131,6 +127,7 @@ impl RenderView {
             .map(|x| { x.iter().map(|x| OrderedFloat(*x)).max() })
             .max());
 
+        /*
         let _a_min = analysis
             .0
             .iter()
@@ -145,6 +142,7 @@ impl RenderView {
             .max()
             .unwrap()
             .unwrap();
+            */
 
         let _grad = colorgrad::CustomGradient::new()
             .html_colors(&["deeppink", "gold", "seagreen"])
@@ -180,22 +178,25 @@ impl RenderView {
                 Rgba(grad.at(val).to_rgba8())
             },
         );
-        let analysis_pass = ShowAnalysisPass::new(
+        //let analysis_pass = ShowAnalysisPass::new(
+        let analysis_pass = ImageLayerPass::new(
             Some("Analysis Image"),
             image::DynamicImage::ImageRgba8(analysis_image),
             &device,
             &queue,
             &config,
+            LayerMode::AlphaBlend,
         );
 
-        //let background_image = file::load_image("images/noise3.png").await;
-        let background_image = file::load_image("images/baba.png").await;
-        let background_pass = TiledBackgroundPass::new(
+        //let background_image = load_image("images/noise3.png").await;
+        let background_image = load_image("images/baba.png").await;
+        let background_pass = ImageLayerPass::new(
             Some("Background Image"),
             background_image,
             &device,
             &queue,
             &config,
+            LayerMode::Background,
         );
 
         let layers = vec![
@@ -213,16 +214,19 @@ impl RenderView {
         }
     }
 
+    /*
     pub async fn _update_background(&mut self, filename: &str) {
-        let background_image = file::load_image(filename).await;
-        let _background = TiledBackgroundPass::new(
+        let background_image = load_image(filename).await;
+        let _background = ImageLayerPass::new(
             Some("Background Image"),
             background_image,
             &self.device,
             &self.queue,
             &self.config,
+            wgpu::BlendState::REPLACE,
         );
     }
+    */
 
     pub fn update(&mut self, delta: instant::Duration) {
         let _step = delta.as_secs_f32();
@@ -239,7 +243,6 @@ impl RenderView {
             self.layers.iter_mut().for_each(|layer| {
                 layer.resize(new_size, &self.queue);
             });
-
             self.size = new_size;
             self.config.width = new_size.width;
             self.config.height = new_size.height;
@@ -259,7 +262,6 @@ impl RenderView {
         self.layers.iter_mut().for_each(|layer| {
             layer.render(&view, &mut encoder);
         });
-
         self.queue.submit(std::iter::once(encoder.finish()));
         frame.present();
     }

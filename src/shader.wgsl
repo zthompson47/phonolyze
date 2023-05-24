@@ -26,9 +26,9 @@ var<uniform> scale: vec4<f32>;
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var tex_coord = vec2<f32>(0.0, 0.0);
-    tex_coord.x = in.tex_coords.x * scale.x;
-    tex_coord.y = in.tex_coords.y * scale.y;
-    //return vec4<f32>(textureSample(t_diffuse, s_diffuse, tex_coord).xyz, 1.0);
-    //return vec4<f32>(textureSample(t_diffuse, s_diffuse, tex_coord).xyz, 0.4);
+    //tex_coord.x = in.tex_coords.x * scale.x;
+    //tex_coord.y = in.tex_coords.y * scale.y;
+    tex_coord.x = in.tex_coords.x * scale.z;
+    tex_coord.y = in.tex_coords.y * scale.w;
     return textureSample(t_diffuse, s_diffuse, tex_coord);
 }
