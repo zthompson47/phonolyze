@@ -31,11 +31,9 @@ impl RenderView {
             backends: wgpu::Backends::all(),
             ..wgpu::InstanceDescriptor::default()
         });
-
         // SAFETY: `View` is created in the main thread and `window` remains valid
         // for the lifetime of `surface`.
         let surface = unsafe { instance.create_surface(&window).unwrap() };
-
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -44,19 +42,19 @@ impl RenderView {
             })
             .await
             .unwrap();
-
+        let limits = wgpu::Limits::downlevel_webgl2_defaults();
+        let max_width = limits.max_texture_dimension_2d;
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
                     features: wgpu::Features::empty(),
-                    limits: wgpu::Limits::downlevel_webgl2_defaults(),
+                    limits,
                 },
                 None,
             )
             .await
             .unwrap();
-
         let capabilities = surface.get_capabilities(&adapter);
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -103,8 +101,8 @@ impl RenderView {
         let signal = audio.dump_mono();
         let mut analysis = stft(&signal, "hamming", cli.window_size, cli.jump_size);
 
-        analysis.0.truncate(cli.top);
-        analysis.1.truncate(cli.top);
+        analysis.0.truncate(max_width as usize);
+        analysis.1.truncate(max_width as usize);
 
         dbg!(analysis.0.len());
         dbg!(analysis.0[0].len());
