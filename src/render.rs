@@ -50,12 +50,7 @@ impl RenderView {
                 &wgpu::DeviceDescriptor {
                     label: None,
                     features: wgpu::Features::empty(),
-                    //features: wgpu::Features::PUSH_CONSTANTS,
-                    #[cfg(target_arch = "wasm32")]
-                    limits: wgpu::Limits::downlevel_webgl2_defaults()
-                        .using_resolution(wgpu::Limits::default()),
-                    #[cfg(not(target_arch = "wasm32"))]
-                    limits: wgpu::Limits::default(),
+                    limits: wgpu::Limits::downlevel_webgl2_defaults(),
                 },
                 None,
             )
@@ -106,12 +101,7 @@ impl RenderView {
 
         let mut audio = AudioFile::open(audio_file).await.unwrap();
         let signal = audio.dump_mono();
-        let mut analysis = stft(
-            &signal,
-            "hamming",
-            cli.window_size,
-            cli.jump_size,
-        );
+        let mut analysis = stft(&signal, "hamming", cli.window_size, cli.jump_size);
 
         analysis.0.truncate(cli.top);
         analysis.1.truncate(cli.top);
