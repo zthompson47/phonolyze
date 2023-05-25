@@ -112,8 +112,8 @@ impl ImageLayerPass {
 
         let scale = Scale::new(
             label,
-            4.,
-            2.,
+            47.,
+            47.,
             (config.width, config.height).into(),
             dimensions.into(),
             device,
