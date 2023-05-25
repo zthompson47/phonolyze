@@ -104,6 +104,7 @@ impl RenderView {
         analysis.0.truncate(max_width as usize);
         analysis.1.truncate(max_width as usize);
 
+        /*
         dbg!(analysis.0.len());
         dbg!(analysis.0[0].len());
         use ordered_float::OrderedFloat;
@@ -117,6 +118,7 @@ impl RenderView {
             .iter()
             .map(|x| { x.iter().map(|x| OrderedFloat(*x)).max() })
             .max());
+            */
         let _grad = colorgrad::CustomGradient::new()
             .html_colors(&["deeppink", "gold", "seagreen"])
             .build()

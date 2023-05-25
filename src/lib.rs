@@ -75,24 +75,29 @@ pub async fn main() {
         .unwrap_or(String::from("media/jtree_stream.m4a"));
 
     #[cfg(not(target_arch = "wasm32"))]
-    {
+    let audio_player = {
         let device = cpal::default_host()
             .default_output_device()
-            .ok_or(Error::msg("No audio device found")).unwrap();
+            .ok_or(Error::msg("No audio device found"))
+            .unwrap();
         let config = device.default_output_config().unwrap();
-        let audio_player = match config.sample_format() {
+
+        match config.sample_format() {
             cpal::SampleFormat::I8 => {
-                AudioPlayer::new::<i8>(&device, &config.into(), cli.latency_ms, cli.chunk_size).await
+                AudioPlayer::new::<i8>(&device, &config.into(), cli.latency_ms, cli.chunk_size)
+                    .await
             }
             cpal::SampleFormat::F32 => {
-                AudioPlayer::new::<f32>(&device, &config.into(), cli.latency_ms, cli.chunk_size).await
+                AudioPlayer::new::<f32>(&device, &config.into(), cli.latency_ms, cli.chunk_size)
+                    .await
             }
             _ => panic!("unsupported format"),
         }
-        .unwrap();
+        .unwrap()
+    };
 
-        audio_player.play(audio_file.clone().into());
-    }
+    #[cfg(not(target_arch = "wasm32"))]
+    audio_player.play(audio_file.clone().into());
 
     let render_view = render::RenderView::new(&window, &audio_file, &cli).await;
     let mut event_handler = event::EventHandler::new(window, render_view);
