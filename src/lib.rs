@@ -30,6 +30,8 @@ pub struct Cli {
     latency_ms: f32,
     #[arg(short, long, default_value_t = 2048)]
     chunk_size: usize,
+    #[arg(short, long, default_value_t = false)]
+    play_audio: bool,
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
@@ -97,7 +99,9 @@ pub async fn main() {
     };
 
     #[cfg(not(target_arch = "wasm32"))]
-    audio_player.play(audio_file.clone().into());
+    if cli.play_audio {
+        audio_player.play(audio_file.clone().into());
+    };
 
     let render_view = render::RenderView::new(&window, &audio_file, &cli).await;
     let mut event_handler = event::EventHandler::new(window, render_view);

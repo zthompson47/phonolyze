@@ -78,8 +78,19 @@ impl Scale {
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
 
-    pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
+    pub fn resize(&mut self, new_size: PhysicalSize<u32>, queue: &wgpu::Queue) {
+        dbg!(&self);
         self.window_size = new_size;
+        //let (inner_x, inner_y) = (self.inner.x_val, self.inner.y_val);
+        self.inner.x_val = ((self.window_size.width as f32 / self.image_size.width as f32)
+            * self.inner.x_norm)
+            .clamp(0., self.max_y_val);
+        self.inner.y_val = ((self.window_size.height as f32 / self.image_size.height as f32)
+            * self.inner.y_norm)
+            .clamp(0., self.max_y_val);
+        self.inner.x_norm = inv_quint_ease_in(self.inner.x_val, 0., self.max_x_val);
+        self.inner.y_norm = inv_quint_ease_in(self.inner.y_val, 0., self.max_y_val);
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
 }
 

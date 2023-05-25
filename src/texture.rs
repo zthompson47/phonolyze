@@ -210,7 +210,7 @@ impl ImageLayerPass {
 
 impl Layer for ImageLayerPass {
     fn resize(&mut self, new_size: PhysicalSize<u32>, queue: &wgpu::Queue) {
-        self.scale.resize(new_size);
+        self.scale.resize(new_size, queue);
         if !self.used {
             self.scale.center(queue);
         }
