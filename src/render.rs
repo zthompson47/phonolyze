@@ -106,12 +106,15 @@ impl RenderView {
 
         let mut audio = AudioFile::open(audio_file).await.unwrap();
         let signal = audio.dump_mono();
-        let analysis = stft(
-            &signal[0..(signal.len() as f32 * cli.top) as usize],
+        let mut analysis = stft(
+            &signal,
             "hamming",
             cli.window_size,
             cli.jump_size,
         );
+
+        analysis.0.truncate(cli.top);
+        analysis.1.truncate(cli.top);
 
         dbg!(analysis.0.len());
         dbg!(analysis.0[0].len());
@@ -126,24 +129,6 @@ impl RenderView {
             .iter()
             .map(|x| { x.iter().map(|x| OrderedFloat(*x)).max() })
             .max());
-
-        /*
-        let _a_min = analysis
-            .0
-            .iter()
-            .map(|x| x.iter().map(|x| OrderedFloat(*x)).min())
-            .min()
-            .unwrap()
-            .unwrap();
-        let _a_max = analysis
-            .0
-            .iter()
-            .map(|x| x.iter().map(|x| OrderedFloat(*x)).max())
-            .max()
-            .unwrap()
-            .unwrap();
-            */
-
         let _grad = colorgrad::CustomGradient::new()
             .html_colors(&["deeppink", "gold", "seagreen"])
             .build()

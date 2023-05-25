@@ -1,7 +1,16 @@
 #![allow(unused)]
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::mpsc,
+};
 
 use anyhow::{Error, Result};
+use cpal::{
+    traits::{DeviceTrait, HostTrait, StreamTrait},
+    FromSample, SizedSample,
+};
+use num::traits::Zero;
 use symphonia::{
     core::{
         audio::SampleBuffer,
@@ -130,33 +139,108 @@ impl AudioFile {
         });
         writer.finalize().unwrap();
     }
-
-    /*
-    pub fn play(&self) {
-        use cpal::traits::{DeviceTrait, HostTrait};
-        let audio_device = cpal::default_host().default_output_device().unwrap();
-        let audio_config = audio_device.default_output_config().unwrap();
-        let mut player = match audio_config.sample_format() {
-            cpal::SampleFormat::I8 => AudioPlayer::new::<i8>(
-                &audio_device,
-                &audio_config.into(),
-                cli.latency_ms,
-                cli.chunk_size,
-            ),
-            cpal::SampleFormat::F32 => AudioPlayer::new::<f32>(
-                &audio_device,
-                &audio_config.into(),
-                cli.latency_ms,
-                cli.chunk_size,
-            ),
-            _ => panic!("unsupported format"),
-        }
-        .unwrap();
-    }
-    */
 }
 
 pub enum CopyMethod {
     Interleaved,
     Planar,
+}
+
+pub struct AudioPlayer {
+    //device: cpal::Device,
+    //config: cpal::StreamConfig,
+    tx_play_song: mpsc::Sender<PathBuf>,
+    _stream: cpal::Stream,
+}
+
+impl AudioPlayer {
+    pub async fn new<S>(
+        device: &cpal::Device,
+        config: &cpal::StreamConfig,
+        latency_ms: f32,
+        chunk_size: usize,
+    ) -> Result<Self>
+    where
+        S: SizedSample + FromSample<f32> + Zero + Send + 'static,
+    {
+        let sample_rate = config.sample_rate.0 as f32;
+        let channels = config.channels as u32;
+        let latency_frames = (latency_ms * sample_rate / 1000.).round() as u32;
+        let latency_samples = (latency_frames * channels) as usize;
+        let (mut txrb_audio, mut rxrb_audio) = rtrb::RingBuffer::<S>::new(latency_samples * 2);
+
+        for _ in 0..latency_samples {
+            txrb_audio.push(S::zero());
+        }
+
+        let (tx_play_song, rx_play_song) = mpsc::channel::<PathBuf>();
+
+        std::thread::spawn(move || {
+            pollster::block_on(async {
+                while let Ok(song) = rx_play_song.recv() {
+                    let mut audio = AudioFile::open(song.to_str().unwrap()).await.unwrap();
+                    loop {
+                        match audio.next_sample(CopyMethod::Interleaved) {
+                            Ok(Some(signal)) => {
+                                for sample in signal.samples() {
+                                    loop {
+                                        if txrb_audio.push(S::from_sample(*sample)).is_ok() {
+                                            break;
+                                        }
+                                        log::info!("sleep: {}", latency_ms);
+                                        std::thread::sleep(instant::Duration::from_millis(
+                                            latency_ms as u64 / 2,
+                                        ));
+                                    }
+                                }
+                            }
+                            Ok(None) => break,
+                            Err(e) => {
+                                log::error!("{e:?}");
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
+        });
+
+        let _stream = device.build_output_stream(
+            config,
+            move |data: &mut [S], _: &cpal::OutputCallbackInfo| {
+                let mut input_fell_behind = false;
+
+                for sample in data.chunks_mut(channels as usize) {
+                    if let Ok(chunk) = rxrb_audio.read_chunk(2) {
+                        let mut chunk = chunk.into_iter();
+                        sample[0] = chunk.next().unwrap();
+                        sample[1] = chunk.next().unwrap();
+                    } else {
+                        input_fell_behind = true;
+                        sample[0] = S::zero();
+                        sample[1] = S::zero();
+                    }
+                }
+
+                if input_fell_behind {
+                    log::warn!("input fell behind");
+                }
+            },
+            move |err| {
+                log::error!("{err}");
+            },
+            None,
+        )?;
+
+        _stream.play()?;
+
+        Ok(AudioPlayer {
+            _stream,
+            tx_play_song,
+        })
+    }
+
+    pub fn play(&self, song: std::path::PathBuf) {
+        self.tx_play_song.send(song).unwrap();
+    }
 }

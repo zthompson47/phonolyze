@@ -7,8 +7,12 @@ mod scale;
 mod texture;
 mod vertex;
 
+use anyhow::Error;
 use clap::Parser;
+use cpal::traits::{DeviceTrait, HostTrait};
 use winit::{event_loop::EventLoop, window::WindowBuilder};
+
+use crate::audio::AudioPlayer;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -16,16 +20,20 @@ use wasm_bindgen::prelude::*;
 #[derive(clap::Parser)]
 pub struct Cli {
     audio_file: Option<String>,
-    #[arg(short, long, default_value_t = 0.6)]
-    top: f32,
+    #[arg(short, long, default_value_t = 8192)]
+    top: usize,
     #[arg(short, long, default_value_t = 2048)]
     window_size: usize,
     #[arg(short, long, default_value_t = 2048)]
     jump_size: usize,
+    #[arg(short, long, default_value_t = 2048.)]
+    latency_ms: f32,
+    #[arg(short, long, default_value_t = 2048)]
+    chunk_size: usize,
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
-pub async fn main() {
+pub async fn main() -> anyhow::Result<()> {
     // Configure logging
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
@@ -60,9 +68,29 @@ pub async fn main() {
             .expect("Couldn't append canvas to document body.");
     }
 
-    // Command line args
     let cli = Cli::parse();
-    let audio_file = cli.audio_file.clone().unwrap_or(String::from("media/_song.flac"));
+
+    let audio_file = cli
+        .audio_file
+        .clone()
+        .unwrap_or(String::from("media/jtree_stream.m4a"));
+    let device = cpal::default_host()
+        .default_output_device()
+        .ok_or(Error::msg("No audio device found"))?;
+    let config = device.default_output_config()?;
+    let audio_player = match config.sample_format() {
+        cpal::SampleFormat::I8 => {
+            AudioPlayer::new::<i8>(&device, &config.into(), cli.latency_ms, cli.chunk_size).await
+        }
+        cpal::SampleFormat::F32 => {
+            AudioPlayer::new::<f32>(&device, &config.into(), cli.latency_ms, cli.chunk_size).await
+        }
+        _ => panic!("unsupported format"),
+    }
+    .unwrap();
+
+    audio_player.play(audio_file.clone().into());
+
     let render_view = render::RenderView::new(&window, &audio_file, &cli).await;
     let mut event_handler = event::EventHandler::new(window, render_view);
 
