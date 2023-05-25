@@ -33,7 +33,7 @@ pub struct Cli {
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
-pub async fn main() -> anyhow::Result<()> {
+pub async fn main() {
     // Configure logging
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
@@ -60,36 +60,39 @@ pub async fn main() -> anyhow::Result<()> {
         web_sys::window()
             .and_then(|win| win.document())
             .and_then(|doc| {
-                let dst = doc.get_element_by_id("phonolyze")?;
+                let dst = doc.get_element_by_id("phonolyze").unwrap();
                 let canvas = web_sys::Element::from(window.canvas());
-                dst.append_child(&canvas).ok()?;
+                dst.append_child(&canvas).ok().unwrap();
                 Some(())
             })
             .expect("Couldn't append canvas to document body.");
     }
 
     let cli = Cli::parse();
-
     let audio_file = cli
         .audio_file
         .clone()
         .unwrap_or(String::from("media/jtree_stream.m4a"));
-    let device = cpal::default_host()
-        .default_output_device()
-        .ok_or(Error::msg("No audio device found"))?;
-    let config = device.default_output_config()?;
-    let audio_player = match config.sample_format() {
-        cpal::SampleFormat::I8 => {
-            AudioPlayer::new::<i8>(&device, &config.into(), cli.latency_ms, cli.chunk_size).await
-        }
-        cpal::SampleFormat::F32 => {
-            AudioPlayer::new::<f32>(&device, &config.into(), cli.latency_ms, cli.chunk_size).await
-        }
-        _ => panic!("unsupported format"),
-    }
-    .unwrap();
 
-    audio_player.play(audio_file.clone().into());
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let device = cpal::default_host()
+            .default_output_device()
+            .ok_or(Error::msg("No audio device found")).unwrap();
+        let config = device.default_output_config().unwrap();
+        let audio_player = match config.sample_format() {
+            cpal::SampleFormat::I8 => {
+                AudioPlayer::new::<i8>(&device, &config.into(), cli.latency_ms, cli.chunk_size).await
+            }
+            cpal::SampleFormat::F32 => {
+                AudioPlayer::new::<f32>(&device, &config.into(), cli.latency_ms, cli.chunk_size).await
+            }
+            _ => panic!("unsupported format"),
+        }
+        .unwrap();
+
+        audio_player.play(audio_file.clone().into());
+    }
 
     let render_view = render::RenderView::new(&window, &audio_file, &cli).await;
     let mut event_handler = event::EventHandler::new(window, render_view);
