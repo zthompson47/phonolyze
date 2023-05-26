@@ -1,10 +1,14 @@
+#![warn(missing_docs)]
+//! crate docccs
 mod audio;
+mod ease;
 mod event;
 mod fft;
 mod file;
+mod layers;
 mod render;
 mod scale;
-mod texture;
+//mod texture;
 mod vertex;
 
 use anyhow::Error;
@@ -18,23 +22,32 @@ use crate::audio::AudioPlayer;
 use wasm_bindgen::prelude::*;
 
 #[derive(clap::Parser)]
+/// Command line arguments
 pub struct Cli {
+    /// Song file to analyze
     audio_file: Option<String>,
+    /// Truncate analysis buffer
     #[arg(short, long, default_value_t = 8192)]
     top: usize,
+    /// DFT window size
     #[arg(short, long, default_value_t = 2048)]
     window_size: usize,
+    /// STFT jump size
     #[arg(short, long, default_value_t = 2048)]
     jump_size: usize,
+    /// STFT jump size
     #[arg(short, long, default_value_t = 2048.)]
     latency_ms: f32,
+    /// STFT jump size
     #[arg(short, long, default_value_t = 2048)]
     chunk_size: usize,
+    /// STFT jump size
     #[arg(short, long, default_value_t = false)]
     play_audio: bool,
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
+/// asdf
 pub async fn main() {
     // Configure logging
     cfg_if::cfg_if! {

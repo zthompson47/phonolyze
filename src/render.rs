@@ -1,7 +1,8 @@
 use image::{Rgba, RgbaImage};
 use winit::{dpi::PhysicalSize, event::WindowEvent};
 
-use crate::{audio::AudioFile, fft::stft, file::load_image, texture::ImageLayerPass, Cli};
+use crate::{audio::AudioFile, fft::stft, file::load_image,
+/*texture::ImageLayerPass,*/ Cli, layers::scaled_image::ScaledImagePass,};
 
 pub trait Layer {
     fn render(&mut self, view: &wgpu::TextureView, encoder: &mut wgpu::CommandEncoder);
@@ -154,7 +155,7 @@ impl RenderView {
             },
         );
         //let analysis_pass = ShowAnalysisPass::new(
-        let analysis_pass = ImageLayerPass::new(
+        let analysis_pass = ScaledImagePass::new(
             Some("Analysis Image"),
             image::DynamicImage::ImageRgba8(analysis_image),
             &device,
@@ -165,7 +166,7 @@ impl RenderView {
 
         //let background_image = load_image("images/noise3.png").await;
         let background_image = load_image("images/baba.png").await;
-        let background_pass = ImageLayerPass::new(
+        let background_pass = ScaledImagePass::new(
             Some("Background Image"),
             background_image,
             &device,
@@ -192,7 +193,7 @@ impl RenderView {
     /*
     pub async fn _update_background(&mut self, filename: &str) {
         let background_image = load_image(filename).await;
-        let _background = ImageLayerPass::new(
+        let _background = ScaledImagePass::new(
             Some("Background Image"),
             background_image,
             &self.device,

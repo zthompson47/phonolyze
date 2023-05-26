@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ImageLayerPass {
+pub struct ScaledImagePass {
     pub image: DynamicImage,
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
@@ -23,7 +23,7 @@ pub struct ImageLayerPass {
     used: bool,
 }
 
-impl ImageLayerPass {
+impl ScaledImagePass {
     pub fn new(
         label: Option<&str>,
         image: DynamicImage,
@@ -146,7 +146,7 @@ impl ImageLayerPass {
 
         let pipeline = Self::create_pipeline(label, config, device, &bind_group_layout, layer_mode);
 
-        let mut pass = ImageLayerPass {
+        let mut pass = ScaledImagePass {
             image,
             bind_group_layout,
             bind_group,
@@ -158,7 +158,7 @@ impl ImageLayerPass {
         };
 
         log::info!("{:#?}", &pass.scale);
-        pass.scale.center(queue);
+        pass.scale.unscale(queue);
         log::info!("{:#?}", &pass.scale);
         pass
     }
@@ -208,11 +208,11 @@ impl ImageLayerPass {
     }
 }
 
-impl Layer for ImageLayerPass {
+impl Layer for ScaledImagePass {
     fn resize(&mut self, new_size: PhysicalSize<u32>, queue: &wgpu::Queue) {
         self.scale.resize(new_size, queue);
         if !self.used {
-            self.scale.center(queue);
+            self.scale.unscale(queue);
         }
     }
 
@@ -243,7 +243,7 @@ impl Layer for ImageLayerPass {
                     self.scale.scale_y(-0.01, queue);
                 }
                 Some(VirtualKeyCode::F) => {
-                    self.scale.center(queue);
+                    self.scale.unscale(queue);
                 }
                 _ => used = false,
             }

@@ -1,5 +1,8 @@
+#![warn(missing_docs)]
 use wgpu::util::DeviceExt;
 use winit::dpi::PhysicalSize;
+
+use crate::ease;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -12,15 +15,31 @@ struct InnerScale {
 
 #[derive(Debug)]
 pub struct Scale {
+    /// Size of viewing window
     window_size: PhysicalSize<u32>,
+    /// Size of displayed image
     image_size: PhysicalSize<u32>,
+    /// Scaling factor uniforms for wgpu
     inner: InnerScale,
+    /// Buffer for wgpu updates
     buffer: wgpu::Buffer,
+    /// Maximum horizontal scale-out factor
     max_x_val: f32,
+    /// Maximum vertical scale-out factor
     max_y_val: f32,
 }
 
 impl Scale {
+    /// Create a new scaling system.
+    ///
+    /// # Arguments
+    ///
+    /// * `label` - bla
+    /// * `max_x_val` - bla
+    /// * `max_y_val` - bla
+    /// * `window_size` - bla
+    /// * `image_size` - bla
+    /// * `device` - bla
     pub fn new(
         label: Option<&str>,
         max_x_val: f32,
@@ -32,8 +51,8 @@ impl Scale {
         let inner = InnerScale {
             x_norm: 1.,
             y_norm: 1.,
-            x_val: inv_quint_ease_in(1., 0., max_x_val),
-            y_val: inv_quint_ease_in(1., 0., max_y_val),
+            x_val: ease::inv_quint_ease_in(1., 0., max_x_val),
+            y_val: ease::inv_quint_ease_in(1., 0., max_y_val),
         };
 
         Scale {
@@ -50,66 +69,51 @@ impl Scale {
         }
     }
 
+    /// Return buffer as bind group resource
     pub fn binding_resource(&self) -> wgpu::BindingResource {
         self.buffer.as_entire_binding()
     }
 
-    //fn unscale(&mut self) {}
-    pub fn center(&mut self, queue: &wgpu::Queue) {
+    /// Reset scale to one image pixel per window pixel.
+    pub fn unscale(&mut self, queue: &wgpu::Queue) {
         self.inner.x_val = (self.window_size.width as f32 / self.image_size.width as f32)
             .clamp(0., self.max_x_val);
         self.inner.y_val = (self.window_size.height as f32 / self.image_size.height as f32)
             .clamp(0., self.max_y_val);
-        self.inner.x_norm = inv_quint_ease_in(self.inner.x_val, 0., self.max_x_val);
-        self.inner.y_norm = inv_quint_ease_in(self.inner.y_val, 0., self.max_y_val);
+        self.inner.x_norm = ease::inv_quint_ease_in(self.inner.x_val, 0., self.max_x_val);
+        self.inner.y_norm = ease::inv_quint_ease_in(self.inner.y_val, 0., self.max_y_val);
 
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
 
+    /// Adjust the normed horizontal scale.
     pub fn scale_x(&mut self, amount: f32, queue: &wgpu::Queue) {
         self.inner.x_norm = (self.inner.x_norm + amount).clamp(0., 1.);
-        self.inner.x_val = quint_ease_in(self.inner.x_norm, 0., self.max_x_val);
+        self.inner.x_val = ease::quint_ease_in(self.inner.x_norm, 0., self.max_x_val);
 
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
 
+    /// Adjust the normed vertical scale.
     pub fn scale_y(&mut self, amount: f32, queue: &wgpu::Queue) {
         self.inner.y_norm = (self.inner.y_norm + amount).clamp(0., 1.);
-        self.inner.y_val = quint_ease_in(self.inner.y_norm, 0., self.max_y_val);
+        self.inner.y_val = ease::quint_ease_in(self.inner.y_norm, 0., self.max_y_val);
 
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
 
+    /// Keep the image at a constant scale when the window resizes.
     pub fn resize(&mut self, new_size: PhysicalSize<u32>, queue: &wgpu::Queue) {
         let ratio_x = new_size.width as f32 / self.window_size.width as f32;
         let ratio_y = new_size.height as f32 / self.window_size.height as f32;
 
         self.window_size = new_size;
+
         self.inner.x_val = (self.inner.x_val * ratio_x).clamp(0., self.max_x_val);
         self.inner.y_val = (self.inner.y_val * ratio_y).clamp(0., self.max_y_val);
-        /*
-        self.inner.x_val = ((self.window_size.width as f32 / self.image_size.width as f32)
-            * self.inner.x_norm)
-            .clamp(0., self.max_y_val);
-        self.inner.y_val = ((self.window_size.height as f32 / self.image_size.height as f32)
-            * self.inner.y_norm)
-            .clamp(0., self.max_y_val);
-            */
-        self.inner.x_norm = inv_quint_ease_in(self.inner.x_val, 0., self.max_x_val);
-        self.inner.y_norm = inv_quint_ease_in(self.inner.y_val, 0., self.max_y_val);
+        self.inner.x_norm = ease::inv_quint_ease_in(self.inner.x_val, 0., self.max_x_val);
+        self.inner.y_norm = ease::inv_quint_ease_in(self.inner.y_val, 0., self.max_y_val);
 
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
-}
-
-fn quint_ease_in(x: f32, min: f32, max: f32) -> f32 {
-    assert!(x >= 0.);
-    assert!(x <= 1.0);
-    (max - min) * x.powi(5) + min
-}
-
-fn inv_quint_ease_in(x: f32, min: f32, max: f32) -> f32 {
-    assert!(x >= min);
-    assert!(x <= max);
-    ((x - min) / (max - min)).powf(1. / 5.)
 }
