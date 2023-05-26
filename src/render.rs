@@ -1,8 +1,13 @@
 use image::{Rgba, RgbaImage};
 use winit::{dpi::PhysicalSize, event::WindowEvent};
 
-use crate::{audio::AudioFile, fft::stft, file::load_image,
-/*texture::ImageLayerPass,*/ Cli, layers::scaled_image::ScaledImagePass,};
+use crate::{
+    audio::AudioFile,
+    fft::stft,
+    file::load_image,
+    layers::{analysis::AnalysisLayerPass, scaled_image::ScaledImagePass},
+    Cli,
+};
 
 pub trait Layer {
     fn render(&mut self, view: &wgpu::TextureView, encoder: &mut wgpu::CommandEncoder);
@@ -175,9 +180,19 @@ impl RenderView {
             LayerMode::Background,
         );
 
+        let new_analysis_pass = AnalysisLayerPass::new(
+            Some("Analysis Pass"),
+            analysis.0,
+            &device,
+            &queue,
+            &config,
+            LayerMode::AlphaBlend,
+        );
+
         let layers = vec![
             Box::new(background_pass) as Box<dyn Layer>,
             Box::new(analysis_pass) as Box<dyn Layer>,
+            Box::new(new_analysis_pass) as Box<dyn Layer>,
         ];
 
         RenderView {
