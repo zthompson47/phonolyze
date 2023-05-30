@@ -1,4 +1,5 @@
-use wgpu::util::DeviceExt;
+#![warn(missing_docs)]
+use wgpu::{util::DeviceExt, PrimitiveTopology};
 use winit::{
     dpi::PhysicalSize,
     event::{VirtualKeyCode, WindowEvent},
@@ -7,17 +8,57 @@ use winit::{
 use crate::{
     render::{Layer, LayerMode},
     scale::Scale,
-    vertex::{Vertex, SQUARE_VERTICES},
 };
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct AnalysisLayerPass {
     analysis: Vec<Vec<f32>>,
     vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    num_indices: u32,
     pub scale: Scale,
     pipeline: wgpu::RenderPipeline,
     layer_mode: LayerMode,
     used: bool,
+    vertices: Vec<Vertex>,
+    gradient: colorgrad::Gradient,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct Vertex {
+    position: [f32; 4],
+    //level: f32,
+    color: [f32; 4],
+}
+
+impl Vertex {
+    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                /*
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<f32>() as wgpu::BufferAddress,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                */
+            ],
+        }
+    }
 }
 
 impl AnalysisLayerPass {
@@ -28,12 +69,12 @@ impl AnalysisLayerPass {
         queue: &wgpu::Queue,
         config: &wgpu::SurfaceConfiguration,
         layer_mode: LayerMode,
+        gradient: colorgrad::Gradient,
     ) -> Self {
         let dimensions = PhysicalSize {
             width: analysis.len() as u32,
             height: analysis[0].len() as u32,
         };
-
         let scale = Scale::new(
             label,
             47.,
@@ -43,41 +84,83 @@ impl AnalysisLayerPass {
             device,
         );
 
+        let mut vertices = Vec::new();
+        let mut indices: Vec<u32> = vec![];
+
+        //let w = 1276;
+        //let h = 772;
+
+        dbg!(&dimensions);
+
+        //let w = dimensions.width as usize;
+        let w = 1276.clamp(0, dimensions.width as usize); //180;
+
+        let h = dimensions.height as usize;
+        //let h = 3000.clamp(0, dimensions.height as usize); //400;
+
+        dbg!(&w, &h);
+        analysis.iter().take(w).enumerate().for_each(|(i, x)| {
+            x.iter().take(h).enumerate().for_each(|(j, y)| {
+                let color = gradient.at(*y as f64).to_array().map(|x| x as f32);
+                //color[3] = 0.8 + *y * 0.2;
+
+                vertices.push(Vertex {
+                    position: [
+                        (i as f32 / (w as f32 - 1.)) * 2. - 1., // - 0.5,
+                        (j as f32 / (h as f32 - 1.)) * 2. - 1., // - 0.5,
+                        0.,
+                        0.,
+                    ],
+                    //level,
+                    color,
+                    /*color: if i % 2 == 0 {
+                        if j % 2 == 0 {
+                            [1., 0., 0., 1.]
+                        } else {
+                            [0., 0., 1., 1.]
+                        }
+                    } else if j % 2 == 0 {
+                        [0., 1., 0., 1.]
+                    } else {
+                        [1., 1., 1., 1.]
+                    },*/
+                });
+                if i < w - 1 && j < h - 1 {
+                    let bl = (h * i + j) as u32;
+                    let br = bl + h as u32;
+                    let tl = bl + 1;
+                    let tr = br + 1;
+
+                    indices.extend_from_slice(&[[tl, bl, tr], [tr, bl, br]].concat());
+                }
+            })
+        });
+
+        //dbg!(&vertices);
+        //dbg!(&indices);
+
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label,
-            contents: bytemuck::cast_slice(SQUARE_VERTICES),
+            contents: bytemuck::cast_slice(&vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        let pipeline = Self::create_pipeline(label, config, device, layer_mode);
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label,
+            contents: bytemuck::cast_slice(&indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+        let num_indices = indices.len() as u32;
 
-        let mut pass = AnalysisLayerPass {
-            analysis,
-            vertex_buffer,
-            scale,
-            pipeline,
-            layer_mode,
-            used: false,
-        };
-
-        pass.scale.unscale(queue);
-        pass
-    }
-
-    fn create_pipeline(
-        label: Option<&str>,
-        config: &wgpu::SurfaceConfiguration,
-        device: &wgpu::Device,
-        layer_mode: LayerMode,
-    ) -> wgpu::RenderPipeline {
         let shader = device.create_shader_module(wgpu::include_wgsl!("analysis.wgsl"));
+
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label,
             bind_group_layouts: &[],
             push_constant_ranges: &[],
         });
 
-        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label,
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
@@ -98,13 +181,31 @@ impl AnalysisLayerPass {
                 })],
             }),
             primitive: wgpu::PrimitiveState {
-                front_face: wgpu::FrontFace::Cw,
+                //topology: PrimitiveTopology::PointList,
+                topology: PrimitiveTopology::TriangleList,
                 ..Default::default()
             },
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
-        })
+        });
+
+        let mut pass = AnalysisLayerPass {
+            analysis,
+            vertex_buffer,
+            index_buffer,
+            num_indices,
+            scale,
+            pipeline,
+            layer_mode,
+            used: false,
+            vertices,
+            gradient,
+        };
+
+        pass.scale.unscale(queue);
+
+        pass
     }
 }
 
@@ -178,6 +279,8 @@ impl Layer for AnalysisLayerPass {
 
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        render_pass.draw(0..6, 0..1);
+        render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+        //render_pass.draw(0..self.vertices.len() as u32, 0..1);
+        render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
     }
 }

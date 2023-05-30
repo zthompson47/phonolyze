@@ -1,5 +1,7 @@
-#![warn(missing_docs)]
 //! crate docccs
+
+#![warn(missing_docs)]
+
 mod audio;
 mod ease;
 mod event;
@@ -8,7 +10,6 @@ mod file;
 mod layers;
 mod render;
 mod scale;
-//mod texture;
 mod vertex;
 
 use anyhow::Error;
@@ -55,7 +56,7 @@ pub async fn main() {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
             console_log::init_with_level(log::Level::Info).unwrap();
         } else {
-            let _log = tailog::init();
+            //let _log = tailog::init();
         }
     }
 
@@ -87,7 +88,7 @@ pub async fn main() {
     let audio_file = cli
         .audio_file
         .clone()
-        .unwrap_or(String::from("media/jtree_stream.m4a"));
+        .unwrap_or(String::from("media/jtreestream.wav"));
 
     #[cfg(not(target_arch = "wasm32"))]
     let audio_player = {

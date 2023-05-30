@@ -1,4 +1,4 @@
-use image::{Rgba, RgbaImage};
+//use image::{Rgba, RgbaImage};
 use winit::{dpi::PhysicalSize, event::WindowEvent};
 
 use crate::{
@@ -49,7 +49,7 @@ impl RenderView {
             .await
             .unwrap();
         let limits = wgpu::Limits::downlevel_webgl2_defaults();
-        let max_width = limits.max_texture_dimension_2d;
+        let _max_width = limits.max_texture_dimension_2d;
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
@@ -105,10 +105,7 @@ impl RenderView {
 
         let mut audio = AudioFile::open(audio_file).await.unwrap();
         let signal = audio.dump_mono();
-        let mut analysis = stft(&signal, "hamming", cli.window_size, cli.jump_size);
-
-        analysis.0.truncate(max_width as usize);
-        analysis.1.truncate(max_width as usize);
+        let analysis = stft(&signal, "hamming", cli.window_size, cli.jump_size);
 
         /*
         dbg!(analysis.0.len());
@@ -136,20 +133,41 @@ impl RenderView {
                 //colorgrad::Color::new(0., 1., 0., 0.2),
                 //colorgrad::Color::new(0., 0., 1., 1.),
                 //colorgrad::Color::new(0., 0., 0., 1.),
-                colorgrad::Color::new(0., 0., 0., 0.7),
-                colorgrad::Color::new(0., 0., 1., 0.8),
-                colorgrad::Color::new(0., 1., 0., 0.9),
+
+                //colorgrad::Color::new(0., 0., 0., 0.7),
+                //colorgrad::Color::new(0., 0., 1., 0.8),
+                //colorgrad::Color::new(0., 1., 0., 0.9),
+                //colorgrad::Color::new(1., 0., 0., 1.),
+
+                colorgrad::Color::new(0., 0., 0., 1.),
+                colorgrad::Color::new(0., 0., 1., 1.),
+                colorgrad::Color::new(0., 1., 0., 1.),
                 colorgrad::Color::new(1., 0., 0., 1.),
             ])
-            .domain(&[-120., -80., -40., 0.])
+            .domain(&[-150., -80., -40., 0.])
             .build()
             .unwrap();
+
+
+        let new_analysis_pass = AnalysisLayerPass::new(
+            Some("Analysis Pass"),
+            analysis.0,
+            &device,
+            &queue,
+            &config,
+            LayerMode::AlphaBlend,
+            grad,
+        );
+
+        //analysis.0.truncate(max_width as usize);
+        //analysis.1.truncate(max_width as usize);
 
         // Map t which is in range [a, b] to range [c, d]
         fn _remap(t: f64, a: f64, b: f64, c: f64, d: f64) -> f64 {
             (t - a) * ((d - c) / (b - a)) + c
         }
 
+        /*
         let analysis_image = RgbaImage::from_fn(
             analysis.0.len() as u32,
             (analysis.0[0].len() as f32 * 0.6) as u32,
@@ -168,6 +186,7 @@ impl RenderView {
             &config,
             LayerMode::AlphaBlend,
         );
+        */
 
         //let background_image = load_image("images/noise3.png").await;
         let background_image = load_image("images/baba.png").await;
@@ -180,18 +199,9 @@ impl RenderView {
             LayerMode::Background,
         );
 
-        let new_analysis_pass = AnalysisLayerPass::new(
-            Some("Analysis Pass"),
-            analysis.0,
-            &device,
-            &queue,
-            &config,
-            LayerMode::AlphaBlend,
-        );
-
         let layers = vec![
             Box::new(background_pass) as Box<dyn Layer>,
-            Box::new(analysis_pass) as Box<dyn Layer>,
+            //Box::new(analysis_pass) as Box<dyn Layer>,
             Box::new(new_analysis_pass) as Box<dyn Layer>,
         ];
 
@@ -230,6 +240,7 @@ impl RenderView {
     }
 
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
+        //dbg!(&new_size);
         if new_size.width > 0 && new_size.height > 0 {
             self.layers.iter_mut().for_each(|layer| {
                 layer.resize(new_size, &self.queue);
