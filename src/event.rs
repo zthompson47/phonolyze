@@ -36,6 +36,8 @@ impl EventHandler {
                     layer.handle_event(&event, &self.render_view.queue);
                 });
 
+                self.window.request_redraw();
+
                 if let WindowEvent::KeyboardInput { input, .. } = event {
                     if let Some(VirtualKeyCode::Escape | VirtualKeyCode::Q) = input.virtual_keycode {
                         *control_flow = ControlFlow::Exit
@@ -48,6 +50,7 @@ impl EventHandler {
                 window_id,
             } if window_id == self.window.id() => {
                 self.render_view.resize(physical_size);
+                self.window.request_redraw();
             }
 
             Event::MainEventsCleared => {
@@ -56,7 +59,7 @@ impl EventHandler {
 
                 self.last_updated = now;
                 self.render_view.update(delta);
-                self.window.request_redraw();
+                //self.window.request_redraw();
             }
 
             Event::RedrawRequested(window_id) if window_id == self.window.id() => {
