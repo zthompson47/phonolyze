@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use ordered_float::OrderedFloat;
+//use ordered_float::OrderedFloat;
 use rustfft::num_complex::Complex;
 
 pub fn get_window(_name: &'static str, size: usize) -> Vec<f32> {
@@ -19,10 +19,10 @@ pub fn stft(
     window_size: usize,
     hop_size: usize,
 ) -> (Vec<Vec<f32>>, Vec<Vec<f32>>) {
-    dbg!(
+    /*dbg!(
         signal.iter().map(|x| OrderedFloat(*x)).max(),
         signal.iter().map(|x| OrderedFloat(*x)).min()
-    );
+    );*/
 
     let window = get_window(window, window_size);
     let _half_window_round = (window_size + 1) / 2;
