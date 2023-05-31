@@ -23,7 +23,7 @@ use symphonia::{
     default::{get_codecs, get_probe},
 };
 
-use crate::file;
+use crate::{file, Cli};
 
 pub struct AudioFile {
     format: Box<dyn FormatReader>,
@@ -242,5 +242,39 @@ impl AudioPlayer {
 
     pub fn play(&self, song: std::path::PathBuf) {
         self.tx_play_song.send(song).unwrap();
+    }
+}
+
+impl From<&Cli> for AudioPlayer {
+    fn from(cli: &Cli) -> Self {
+        let device = cpal::default_host()
+            .default_output_device()
+            .ok_or(Error::msg("No audio device found"))
+            .unwrap();
+        let config = device.default_output_config().unwrap();
+        let audio_player = {
+            match config.sample_format() {
+                cpal::SampleFormat::I8 => pollster::block_on(AudioPlayer::new::<i8>(
+                    &device,
+                    &config.into(),
+                    cli.latency_ms,
+                    cli.chunk_size,
+                )),
+                cpal::SampleFormat::F32 => pollster::block_on(AudioPlayer::new::<f32>(
+                    &device,
+                    &config.into(),
+                    cli.latency_ms,
+                    cli.chunk_size,
+                )),
+                _ => panic!("unsupported format"),
+            }
+            .unwrap()
+        };
+
+        if cli.play_audio {
+            audio_player.play(cli.audio_file.clone().into());
+        };
+
+        audio_player
     }
 }

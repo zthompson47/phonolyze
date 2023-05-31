@@ -1,5 +1,4 @@
 //! crate docs
-
 #![warn(missing_docs)]
 
 mod audio;
@@ -12,9 +11,7 @@ mod render;
 mod scale;
 mod vertex;
 
-use anyhow::Error;
 use clap::Parser;
-use cpal::traits::{DeviceTrait, HostTrait};
 use winit::{event_loop::EventLoop, window::WindowBuilder};
 
 use crate::{audio::AudioPlayer, layers::gui::Gui};
@@ -22,11 +19,12 @@ use crate::{audio::AudioPlayer, layers::gui::Gui};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-#[derive(clap::Parser)]
 /// Command line arguments
+#[derive(clap::Parser)]
 pub struct Cli {
     /// Song file to analyze
-    audio_file: Option<String>,
+    #[arg(default_value = "media/jtreestream.wav")]
+    audio_file: String,
     /// Truncate analysis buffer
     #[arg(short, long, default_value_t = 8192)]
     top: usize,
@@ -47,9 +45,9 @@ pub struct Cli {
     play_audio: bool,
 }
 
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 /// asdf
-pub async fn main() {
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
+pub fn main() {
     // Configure logging
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
@@ -85,40 +83,12 @@ pub async fn main() {
     }
 
     let cli = Cli::parse();
-    let audio_file = cli
-        .audio_file
-        .clone()
-        .unwrap_or(String::from("media/jtreestream.wav"));
 
     #[cfg(not(target_arch = "wasm32"))]
-    let audio_player = {
-        let device = cpal::default_host()
-            .default_output_device()
-            .ok_or(Error::msg("No audio device found"))
-            .unwrap();
-        let config = device.default_output_config().unwrap();
+    let _audio_player = AudioPlayer::from(&cli);
 
-        match config.sample_format() {
-            cpal::SampleFormat::I8 => {
-                AudioPlayer::new::<i8>(&device, &config.into(), cli.latency_ms, cli.chunk_size)
-                    .await
-            }
-            cpal::SampleFormat::F32 => {
-                AudioPlayer::new::<f32>(&device, &config.into(), cli.latency_ms, cli.chunk_size)
-                    .await
-            }
-            _ => panic!("unsupported format"),
-        }
-        .unwrap()
-    };
-
-    #[cfg(not(target_arch = "wasm32"))]
-    if cli.play_audio {
-        audio_player.play(audio_file.clone().into());
-    };
-
-
-    let mut render_view = render::RenderView::new(&window, &audio_file, &cli).await;
+    let mut render_view =
+        pollster::block_on(render::RenderView::new(&window, &cli.audio_file, &cli)); //.await;
     let gui = Gui::new(&render_view.device, &event_loop, render_view.config.format);
 
     render_view.push_layer(Box::new(gui));
