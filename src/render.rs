@@ -1,5 +1,5 @@
 //use image::{Rgba, RgbaImage};
-use winit::{dpi::PhysicalSize, event::WindowEvent};
+use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
 
 use crate::{
     audio::AudioFile,
@@ -10,9 +10,17 @@ use crate::{
 };
 
 pub trait Layer {
-    fn render(&mut self, view: &wgpu::TextureView, encoder: &mut wgpu::CommandEncoder);
+    fn render(
+        &mut self,
+        view: &wgpu::TextureView,
+        encoder: &mut wgpu::CommandEncoder,
+        window: &Window,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        config: &wgpu::SurfaceConfiguration,
+    );
     fn resize(&mut self, new_size: PhysicalSize<u32>, queue: &wgpu::Queue);
-    fn handle_event(&mut self, event: &WindowEvent, queue: &wgpu::Queue);
+    fn handle_event(&mut self, event: &WindowEvent, queue: &wgpu::Queue) -> bool;
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -26,7 +34,7 @@ pub struct RenderView {
     pub surface: wgpu::Surface,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
+    pub config: wgpu::SurfaceConfiguration,
     pub layers: Vec<Box<dyn Layer>>,
 }
 
@@ -75,7 +83,7 @@ impl RenderView {
         surface.configure(&device, &config);
 
         //let egui_context = egui::Context::default();
-        //let egui_renderer = egui_wgpu::Renderer::new(&device, config.format, 1, 0);
+        //let egui_renderer = egui_wgpu::Renderer::new(&device, config.format, None, 1);
 
         //let audio_info = audio.info();
 
@@ -138,7 +146,6 @@ impl RenderView {
                 //colorgrad::Color::new(0., 0., 1., 0.8),
                 //colorgrad::Color::new(0., 1., 0., 0.9),
                 //colorgrad::Color::new(1., 0., 0., 1.),
-
                 colorgrad::Color::new(0., 0., 0., 1.),
                 colorgrad::Color::new(0., 0., 1., 1.),
                 colorgrad::Color::new(0., 1., 0., 1.),
@@ -147,7 +154,6 @@ impl RenderView {
             .domain(&[-150., -80., -40., 0.])
             .build()
             .unwrap();
-
 
         let new_analysis_pass = AnalysisLayerPass::new(
             Some("Analysis Pass"),
@@ -252,7 +258,7 @@ impl RenderView {
         }
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self, window: &Window) {
         let frame = self.surface.get_current_texture().unwrap();
         let view = frame
             .texture
@@ -262,9 +268,14 @@ impl RenderView {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
         self.layers.iter_mut().for_each(|layer| {
-            layer.render(&view, &mut encoder);
+            layer.render(&view, &mut encoder, window, &self.device, &self.queue, &self.config);
         });
+
         self.queue.submit(std::iter::once(encoder.finish()));
         frame.present();
+    }
+
+    pub fn push_layer(&mut self, layer: Box<dyn Layer>) {
+        self.layers.push(layer);
     }
 }

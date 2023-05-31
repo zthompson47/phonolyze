@@ -3,6 +3,7 @@ use wgpu::util::DeviceExt;
 use winit::{
     dpi::PhysicalSize,
     event::{VirtualKeyCode, WindowEvent},
+    window::Window,
 };
 
 use crate::{
@@ -216,7 +217,7 @@ impl Layer for ScaledImagePass {
         }
     }
 
-    fn handle_event(&mut self, event: &WindowEvent, queue: &wgpu::Queue) {
+    fn handle_event(&mut self, event: &WindowEvent, queue: &wgpu::Queue) -> bool {
         if let WindowEvent::KeyboardInput {
             input:
                 winit::event::KeyboardInput {
@@ -252,9 +253,19 @@ impl Layer for ScaledImagePass {
                 self.used = true;
             }
         }
+
+        false
     }
 
-    fn render(&mut self, view: &wgpu::TextureView, encoder: &mut wgpu::CommandEncoder) {
+    fn render(
+        &mut self,
+        view: &wgpu::TextureView,
+        encoder: &mut wgpu::CommandEncoder,
+        _window: &Window,
+        _device: &wgpu::Device,
+        _queue: &wgpu::Queue,
+        _config: &wgpu::SurfaceConfiguration,
+    ) {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {

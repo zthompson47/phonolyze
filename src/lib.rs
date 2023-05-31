@@ -1,4 +1,4 @@
-//! crate docccs
+//! crate docs
 
 #![warn(missing_docs)]
 
@@ -17,7 +17,7 @@ use clap::Parser;
 use cpal::traits::{DeviceTrait, HostTrait};
 use winit::{event_loop::EventLoop, window::WindowBuilder};
 
-use crate::audio::AudioPlayer;
+use crate::{audio::AudioPlayer, layers::gui::Gui};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -117,7 +117,12 @@ pub async fn main() {
         audio_player.play(audio_file.clone().into());
     };
 
-    let render_view = render::RenderView::new(&window, &audio_file, &cli).await;
+
+    let mut render_view = render::RenderView::new(&window, &audio_file, &cli).await;
+    let gui = Gui::new(&render_view.device, &event_loop, render_view.config.format);
+
+    render_view.push_layer(Box::new(gui));
+
     let mut event_handler = event::EventHandler::new(window, render_view);
 
     event_loop.run(move |event, _, control_flow| {

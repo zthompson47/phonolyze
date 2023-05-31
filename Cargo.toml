@@ -30,13 +30,9 @@ symphonia = { version = "0.5.2", features = ["all"] }
 tailog = { path = "../tailog" }
 wgpu = "0.16.0"
 winit = "0.28.3"
-#egui = "0.21.0"
-#egui-wgpu = "0.21.0"
-#egui-winit = "0.21.1"
-#egui = { path = "/home/zach/cratesio/egui/crates/egui" }
-#egui-wgpu = { path = "/home/zach/cratesio/egui/crates/egui-wgpu" }
-#egui-winit = { path = "/home/zach/cratesio/egui/crates/egui-winit" }
-#easer = "0.3.0"
+egui = { git = "https://github.com/emilk/egui" }
+egui-wgpu = { git = "https://github.com/emilk/egui" }
+egui-winit = { git = "https://github.com/emilk/egui", default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.7"

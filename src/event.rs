@@ -33,7 +33,10 @@ impl EventHandler {
                 window_id,
             } if window_id == self.window.id() => {
                 self.render_view.layers.iter_mut().for_each(|layer| {
-                    layer.handle_event(&event, &self.render_view.queue);
+                    if layer.handle_event(&event, &self.render_view.queue) {
+                        #[allow(clippy::needless_return)] // TODO - handle consumed events
+                        return;
+                    }
                 });
 
                 self.window.request_redraw();
@@ -63,7 +66,7 @@ impl EventHandler {
             }
 
             Event::RedrawRequested(window_id) if window_id == self.window.id() => {
-                self.render_view.render();
+                self.render_view.render(&self.window);
             }
 
             _ => (),
