@@ -7,7 +7,7 @@ use winit::{
 };
 
 use crate::{
-    render::{Layer, LayerMode},
+    render::{Layer, LayerMode, LayerState, RenderView},
     scale::Scale,
 };
 
@@ -114,17 +114,6 @@ impl AnalysisLayerPass {
                     ],
                     //level,
                     color,
-                    /*color: if i % 2 == 0 {
-                        if j % 2 == 0 {
-                            [1., 0., 0., 1.]
-                        } else {
-                            [0., 0., 1., 1.]
-                        }
-                    } else if j % 2 == 0 {
-                        [0., 1., 0., 1.]
-                    } else {
-                        [1., 1., 1., 1.]
-                    },*/
                 });
                 if i < w - 1 && j < h - 1 {
                     let bl = (h * i + j) as u32;
@@ -218,7 +207,11 @@ impl Layer for AnalysisLayerPass {
         }
     }
 
-    fn handle_event(&mut self, event: &WindowEvent, queue: &wgpu::Queue) -> bool {
+    fn handle_event(
+        &mut self,
+        event: &WindowEvent,
+        queue: &wgpu::Queue,
+    ) -> egui_winit::EventResponse {
         if let WindowEvent::KeyboardInput {
             input:
                 winit::event::KeyboardInput {
@@ -255,7 +248,10 @@ impl Layer for AnalysisLayerPass {
             }
         }
 
-        false
+        egui_winit::EventResponse {
+            consumed: false,
+            repaint: false,
+        }
     }
 
     fn render(
@@ -266,6 +262,7 @@ impl Layer for AnalysisLayerPass {
         _device: &wgpu::Device,
         _queue: &wgpu::Queue,
         _config: &wgpu::SurfaceConfiguration,
+        _state: &mut LayerState,
     ) {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),

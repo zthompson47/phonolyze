@@ -10,6 +10,7 @@ pub struct EventHandler {
     pub window: Window,
     pub render_view: RenderView,
     last_updated: instant::Instant,
+    //egui_state: egui_winit::State,
 }
 
 impl EventHandler {
@@ -22,6 +23,35 @@ impl EventHandler {
     }
 
     pub fn handle_event(&mut self, event: Event<()>, control_flow: &mut ControlFlow) {
+        if let Event::WindowEvent {
+            ref event,
+            window_id,
+        } = event
+        {
+            if window_id == self.window.id() {
+                let mut consumed = false;
+                let mut repaint = false;
+
+                self.render_view.layers.iter_mut().for_each(|layer| {
+                    let response = layer.handle_event(event, &self.render_view.queue);
+
+                    if response.consumed {
+                        consumed = true;
+                    }
+                    if response.repaint {
+                        repaint = true;
+                    }
+                });
+
+                if repaint {
+                    self.window.request_redraw();
+                }
+                if consumed {
+                    return;
+                }
+            }
+        }
+
         match event {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
@@ -29,22 +59,11 @@ impl EventHandler {
             } if window_id == self.window.id() => *control_flow = ControlFlow::Exit,
 
             Event::WindowEvent {
-                event: event @ WindowEvent::KeyboardInput { .. },
+                event: WindowEvent::KeyboardInput { input, .. },
                 window_id,
             } if window_id == self.window.id() => {
-                self.render_view.layers.iter_mut().for_each(|layer| {
-                    if layer.handle_event(&event, &self.render_view.queue) {
-                        #[allow(clippy::needless_return)] // TODO - handle consumed events
-                        return;
-                    }
-                });
-
-                self.window.request_redraw();
-
-                if let WindowEvent::KeyboardInput { input, .. } = event {
-                    if let Some(VirtualKeyCode::Escape | VirtualKeyCode::Q) = input.virtual_keycode {
-                        *control_flow = ControlFlow::Exit
-                  }
+                if let Some(VirtualKeyCode::Escape | VirtualKeyCode::Q) = input.virtual_keycode {
+                    *control_flow = ControlFlow::Exit
                 }
             }
 

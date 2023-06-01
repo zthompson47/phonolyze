@@ -1,17 +1,11 @@
-use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
+use winit::{event::WindowEvent, window::Window};
 
-use crate::render::Layer;
-
-#[derive(Default)]
-struct GuiState {
-    repaint: bool,
-}
+use crate::render::{Layer, LayerState, RenderView};
 
 pub struct Gui {
     context: egui::Context,
     renderer: egui_wgpu::Renderer,
     window_state: egui_winit::State,
-    state: GuiState,
 }
 
 impl Gui {
@@ -24,20 +18,73 @@ impl Gui {
             context: egui::Context::default(),
             renderer: egui_wgpu::Renderer::new(device, texture_format, None, 1),
             window_state: egui_winit::State::new(event_loop),
-            state: GuiState::default(),
         }
     }
 }
 
+#[derive(Debug, Default, PartialEq)]
+pub enum ColorMap {
+    Rgb,
+    #[default]
+    Blue,
+}
+
+impl ColorMap {
+    #[allow(dead_code)]
+    pub fn grad(&self) -> colorgrad::Gradient {
+        match &self {
+            Self::Rgb => colorgrad::CustomGradient::new()
+                .colors(&[
+                    colorgrad::Color::new(0.0, 0.0, 0.0, 1.0),
+                    colorgrad::Color::new(0.0, 0.0, 1.0, 1.0),
+                    colorgrad::Color::new(0.0, 1.0, 0.0, 1.0),
+                    colorgrad::Color::new(1.0, 0.0, 0.0, 1.0),
+                ])
+                .domain(&[-150., -80., -40., 0.])
+                .build()
+                .unwrap(),
+            Self::Blue => colorgrad::CustomGradient::new()
+                .colors(&[
+                    colorgrad::Color::new(0.0, 0.0, 0.0, 0.0),
+                    colorgrad::Color::new(0.0, 0.0, 1.0, 0.5),
+                    colorgrad::Color::new(0.0, 0.2, 0.5, 1.0),
+                    colorgrad::Color::new(0.2, 0.2, 1.0, 1.0),
+                ])
+                .domain(&[-150., -80., -40., 0.])
+                .build()
+                .unwrap(),
+        }
+    }
+}
+
+impl std::fmt::Display for ColorMap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Self::Rgb => write!(f, "Rgb"),
+            Self::Blue => write!(f, "Blue"),
+        }
+    }
+}
+
+/*
+struct EventResult {
+    repaint: bool,
+    consumed: bool,
+}
+*/
+
 impl Layer for Gui {
-    fn resize(&mut self, _new_size: PhysicalSize<u32>, _queue: &wgpu::Queue) {}
+    fn handle_event(
+        &mut self,
+        event: &WindowEvent,
+        _queue: &wgpu::Queue,
+    ) -> egui_winit::EventResponse {
+        self.window_state.on_event(&self.context, event)
+        /*let response = self.window_state.on_event(&self.context, event);
 
-    fn handle_event(&mut self, event: &WindowEvent, _queue: &wgpu::Queue) -> bool {
-        let response = self.window_state.on_event(&self.context, event);
+        self.repaint = response.repaint;
 
-        self.state.repaint = response.repaint;
-
-        response.consumed
+        response.consumed*/
     }
 
     fn render(
@@ -48,13 +95,23 @@ impl Layer for Gui {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         config: &wgpu::SurfaceConfiguration,
+        state: &mut LayerState,
+        //renderer: &mut RenderView,
     ) {
         let input = self.window_state.take_egui_input(window);
-        let output = self.context.run(input, |ctx| {
-            egui::Area::new("testitout").show(ctx, |ui| {
-                ui.label("Hup Hup Hup");
-            });
-        });
+        let output = {
+            use ColorMap::*;
+            self.context.run(input, |ctx| {
+                egui::Area::new("testitout").show(ctx, |ui| {
+                    egui::ComboBox::from_label("Colormap")
+                        .selected_text(format!("{:?}", state.color_map))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut state.color_map, Rgb, Rgb.to_string());
+                            ui.selectable_value(&mut state.color_map, Blue, Blue.to_string());
+                        });
+                });
+            })
+        };
 
         let clipped_primitives: Vec<egui::epaint::ClippedPrimitive> =
             self.context.tessellate(output.shapes);

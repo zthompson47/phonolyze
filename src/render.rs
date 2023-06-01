@@ -1,11 +1,10 @@
-//use image::{Rgba, RgbaImage};
 use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
 
 use crate::{
     audio::AudioFile,
     fft::stft,
     file::load_image,
-    layers::{analysis::AnalysisLayerPass, scaled_image::ScaledImagePass},
+    layers::{analysis::AnalysisLayerPass, gui::ColorMap, scaled_image::ScaledImagePass},
     Cli,
 };
 
@@ -18,15 +17,33 @@ pub trait Layer {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         config: &wgpu::SurfaceConfiguration,
+        state: &mut LayerState,
     );
-    fn resize(&mut self, new_size: PhysicalSize<u32>, queue: &wgpu::Queue);
-    fn handle_event(&mut self, event: &WindowEvent, queue: &wgpu::Queue) -> bool;
+
+    fn resize(&mut self, _new_size: PhysicalSize<u32>, _queue: &wgpu::Queue) {}
+
+    fn handle_event(
+        &mut self,
+        _event: &WindowEvent,
+        _queue: &wgpu::Queue,
+    ) -> egui_winit::EventResponse {
+        egui_winit::EventResponse {
+            consumed: false,
+            repaint: false,
+        }
+    }
+    //fn update(&mut self, _delta: instant::Duration, _state: &mut LayerState) {}
 }
 
 #[derive(Copy, Clone, Debug)]
 pub enum LayerMode {
     Background,
     AlphaBlend,
+}
+
+#[derive(Default)]
+pub struct LayerState {
+    pub color_map: ColorMap,
 }
 
 pub struct RenderView {
@@ -36,6 +53,7 @@ pub struct RenderView {
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub layers: Vec<Box<dyn Layer>>,
+    pub layer_state: LayerState,
 }
 
 impl RenderView {
@@ -218,6 +236,7 @@ impl RenderView {
             queue,
             config,
             layers,
+            layer_state: LayerState::default(),
         }
     }
 
@@ -237,6 +256,10 @@ impl RenderView {
 
     pub fn update(&mut self, delta: instant::Duration) {
         let _step = delta.as_secs_f32();
+
+        //self.layers.iter_mut().for_each(|layer| {
+        //    layer.update(delta, &mut self.layer_state);
+        //});
         /*
         let shader = self
             .device
@@ -246,7 +269,6 @@ impl RenderView {
     }
 
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
-        //dbg!(&new_size);
         if new_size.width > 0 && new_size.height > 0 {
             self.layers.iter_mut().for_each(|layer| {
                 layer.resize(new_size, &self.queue);
@@ -268,7 +290,18 @@ impl RenderView {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
         self.layers.iter_mut().for_each(|layer| {
-            layer.render(&view, &mut encoder, window, &self.device, &self.queue, &self.config);
+            layer.render(
+                &view,
+                &mut encoder,
+                window,
+                &self.device,
+                &self.queue,
+                &self.config,
+                &mut self.layer_state,
+                //self,
+            );
+
+            //layer.render(&view, &mut endcoder, &mut renderer);
         });
 
         self.queue.submit(std::iter::once(encoder.finish()));

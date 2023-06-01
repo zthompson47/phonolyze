@@ -147,8 +147,6 @@ pub enum CopyMethod {
 }
 
 pub struct AudioPlayer {
-    //device: cpal::Device,
-    //config: cpal::StreamConfig,
     tx_play_song: mpsc::Sender<PathBuf>,
     _stream: cpal::Stream,
 }

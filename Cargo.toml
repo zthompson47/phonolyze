@@ -28,7 +28,7 @@ rtrb = "0.2.3"
 rustfft = "6.1.0"
 symphonia = { version = "0.5.2", features = ["all"] }
 tailog = { path = "../tailog" }
-wgpu = "0.16.0"
+wgpu = "0.16.1"
 winit = "0.28.3"
 egui = { git = "https://github.com/emilk/egui" }
 egui-wgpu = { git = "https://github.com/emilk/egui" }
@@ -38,7 +38,7 @@ egui-winit = { git = "https://github.com/emilk/egui", default-features = false }
 console_error_panic_hook = "0.1.7"
 console_log = "1.0.0"
 reqwest = "0.11.17"
-wgpu = { version = "0.16", features = ["webgl"]}
+wgpu = { version = "0.16.1", features = ["webgl"]}
 wasm-bindgen = "0.2.84"
 wasm-bindgen-futures = "0.4.34"
 web-sys = { version = "0.3.61", features = [

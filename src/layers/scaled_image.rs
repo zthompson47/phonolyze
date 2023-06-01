@@ -7,7 +7,7 @@ use winit::{
 };
 
 use crate::{
-    render::{Layer, LayerMode},
+    render::{Layer, LayerMode, LayerState, RenderView},
     scale::Scale,
     vertex::{Vertex, SQUARE_VERTICES},
 };
@@ -217,7 +217,11 @@ impl Layer for ScaledImagePass {
         }
     }
 
-    fn handle_event(&mut self, event: &WindowEvent, queue: &wgpu::Queue) -> bool {
+    fn handle_event(
+        &mut self,
+        event: &WindowEvent,
+        queue: &wgpu::Queue,
+    ) -> egui_winit::EventResponse {
         if let WindowEvent::KeyboardInput {
             input:
                 winit::event::KeyboardInput {
@@ -254,17 +258,21 @@ impl Layer for ScaledImagePass {
             }
         }
 
-        false
+        egui_winit::EventResponse {
+            consumed: false,
+            repaint: false,
+        }
     }
 
     fn render(
         &mut self,
         view: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
-        _window: &Window,
-        _device: &wgpu::Device,
-        _queue: &wgpu::Queue,
-        _config: &wgpu::SurfaceConfiguration,
+        window: &Window,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        config: &wgpu::SurfaceConfiguration,
+        state: &mut LayerState,
     ) {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
