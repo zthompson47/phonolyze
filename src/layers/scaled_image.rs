@@ -7,7 +7,7 @@ use winit::{
 };
 
 use crate::{
-    render::{Layer, LayerMode, LayerState, RenderView},
+    render::{Layer, LayerMode, LayerState},
     scale::Scale,
     vertex::{Vertex, SQUARE_VERTICES},
 };
@@ -268,11 +268,11 @@ impl Layer for ScaledImagePass {
         &mut self,
         view: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
-        window: &Window,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        config: &wgpu::SurfaceConfiguration,
-        state: &mut LayerState,
+        _window: &Window,
+        _device: &wgpu::Device,
+        _queue: &wgpu::Queue,
+        _config: &wgpu::SurfaceConfiguration,
+        _state: &mut LayerState,
     ) {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),

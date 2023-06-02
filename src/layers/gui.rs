@@ -1,6 +1,6 @@
 use winit::{event::WindowEvent, window::Window};
 
-use crate::render::{Layer, LayerState, RenderView};
+use crate::render::{Layer, LayerState};
 
 pub struct Gui {
     context: egui::Context,

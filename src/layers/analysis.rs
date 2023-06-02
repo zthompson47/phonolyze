@@ -7,7 +7,7 @@ use winit::{
 };
 
 use crate::{
-    render::{Layer, LayerMode, LayerState, RenderView},
+    render::{Layer, LayerMode, LayerState},
     scale::Scale,
 };
 
