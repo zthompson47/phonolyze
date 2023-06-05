@@ -49,7 +49,7 @@ impl AudioFile {
     }
 
     pub async fn open(path: &str) -> Result<Self> {
-        let source = file::load_sound(path).await;
+        let source = file::load_sound(path).await?;
         let hint = Hint::new();
         let format_opts: FormatOptions = Default::default();
         let metadata_opts: MetadataOptions = Default::default();

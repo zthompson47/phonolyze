@@ -1,6 +1,5 @@
 /target
 *.bak
-_*
 /scratch
 /media
 /log.txt

@@ -1,60 +1,51 @@
-//use cfg_if::cfg_if;
+use anyhow::Result;
+use image::DynamicImage;
 use symphonia::core::io::MediaSourceStream;
 
 #[cfg(target_arch = "wasm32")]
-fn format_url(file_name: &str) -> reqwest::Url {
+fn format_url(file_name: &str) -> Result<reqwest::Url> {
     let window = web_sys::window().unwrap();
-    let location = window.location();
-    let base = reqwest::Url::parse(&location.origin().unwrap()).unwrap();
+    let origin = window.location().origin().unwrap();
+    let base = reqwest::Url::parse(&origin)?;
 
-    base.join(file_name).unwrap()
+    Ok(base.join(file_name)?)
 }
 
-pub async fn load_image(file_name: &str) -> image::DynamicImage {
+pub async fn load_image(file_name: &str) -> Result<DynamicImage> {
     let data = {
-        cfg_if::cfg_if! {
-            if #[cfg(target_arch = "wasm32")] {
-                let url = format_url(file_name);
+        #[cfg(target_arch = "wasm32")]
+        {
+            let url = format_url(file_name)?;
 
-                reqwest::get(url)
-                    .await
-                    .unwrap()
-                    .bytes()
-                    .await
-                    .unwrap()
-                    .to_vec()
-            } else {
-                let path = std::path::Path::new(&std::env::var("OUT_DIR").unwrap())
-                    .join(file_name);
+            reqwest::get(url).await?.bytes().await?.to_vec()
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let path = std::path::Path::new("www").join(file_name);
 
-                std::fs::read(path).unwrap()
-            }
+            std::fs::read(path)?
         }
     };
 
-    image::load_from_memory(&data).unwrap()
+    Ok(image::load_from_memory(&data)?)
 }
 
-pub async fn load_sound(file_name: &str) -> MediaSourceStream {
-    cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            let url = format_url(file_name);
-            let data = reqwest::get(url)
-                .await
-                .unwrap()
-                .bytes()
-                .await
-                .unwrap()
-                .to_vec();
+pub async fn load_sound(file_name: &str) -> Result<MediaSourceStream> {
+    let cursor = Box::new({
+        #[cfg(target_arch = "wasm32")]
+        {
+            let url = format_url(file_name)?;
+            let data = reqwest::get(url).await?.bytes().await?.to_vec();
 
-            MediaSourceStream::new(Box::new(std::io::Cursor::new(data)), Default::default())
-        } else {
-            let path = std::path::Path::new(&std::env::var("OUT_DIR").unwrap())
-                .join(file_name);
-            dbg!(&path);
-
-            //std::fs::read(path).unwrap()
-            MediaSourceStream::new(Box::new(std::fs::File::open(path).unwrap()), Default::default())
+            std::io::Cursor::new(data)
         }
-    }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let path = std::path::Path::new("www").join(file_name);
+
+            std::fs::File::open(path)?
+        }
+    });
+
+    Ok(MediaSourceStream::new(cursor, Default::default()))
 }

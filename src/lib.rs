@@ -14,7 +14,7 @@ mod vertex;
 use clap::Parser;
 use winit::{event_loop::EventLoop, window::WindowBuilder};
 
-use crate::{audio::AudioPlayer, layers::gui::Gui};
+use crate::layers::gui::Gui;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -23,7 +23,7 @@ use wasm_bindgen::prelude::*;
 #[derive(clap::Parser)]
 pub struct Cli {
     /// Song file to analyze
-    #[arg(default_value = "media/jtreestream.wav")]
+    #[arg(default_value = "media/sine.wav")]
     audio_file: String,
     /// Truncate analysis buffer
     #[arg(short, long, default_value_t = 8192)]
@@ -47,15 +47,16 @@ pub struct Cli {
 
 /// asdf
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
-pub fn main() {
+pub async fn main() {
     // Configure logging
-    cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-            console_log::init_with_level(log::Level::Info).unwrap();
-        } else {
-            //let _log = tailog::init();
-        }
+    #[cfg(target_arch = "wasm32")]
+    {
+        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+        console_log::init_with_level(log::Level::Info).unwrap();
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _log = tailog::init();
     }
 
     let event_loop = EventLoop::new();
@@ -85,10 +86,9 @@ pub fn main() {
     let cli = Cli::parse();
 
     #[cfg(not(target_arch = "wasm32"))]
-    let _audio_player = AudioPlayer::from(&cli);
+    let _audio_player = crate::audio::AudioPlayer::from(&cli);
 
-    let mut render_view =
-        pollster::block_on(render::RenderView::new(&window, &cli.audio_file, &cli)); //.await;
+    let mut render_view = render::RenderView::new(&window, &cli.audio_file, &cli).await;
     let gui = Gui::new(&render_view.device, &event_loop, render_view.config.format);
 
     render_view.push_layer(Box::new(gui));

@@ -213,7 +213,7 @@ impl RenderView {
         */
 
         //let background_image = load_image("images/noise3.png").await;
-        let background_image = load_image("images/baba.png").await;
+        let background_image = load_image("images/baba.png").await.unwrap();
         let background_pass = ScaledImagePass::new(
             Some("Background Image"),
             background_image,

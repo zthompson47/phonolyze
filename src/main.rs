@@ -1,3 +1,3 @@
 fn main() {
-    phonolyze::main()
+    pollster::block_on(phonolyze::main())
 }
