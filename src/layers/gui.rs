@@ -1,6 +1,6 @@
-use winit::{event::WindowEvent, window::Window};
+use winit::event::WindowEvent;
 
-use crate::render::{Layer, LayerState};
+use crate::render::{Layer, Renderer};
 
 pub struct Gui {
     context: egui::Context,
@@ -66,13 +66,6 @@ impl std::fmt::Display for ColorMap {
     }
 }
 
-/*
-struct EventResult {
-    repaint: bool,
-    consumed: bool,
-}
-*/
-
 impl Layer for Gui {
     fn handle_event(
         &mut self,
@@ -87,27 +80,25 @@ impl Layer for Gui {
         response.consumed*/
     }
 
-    fn render(
-        &mut self,
-        view: &wgpu::TextureView,
-        encoder: &mut wgpu::CommandEncoder,
-        window: &Window,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        config: &wgpu::SurfaceConfiguration,
-        state: &mut LayerState,
-        //renderer: &mut RenderView,
-    ) {
-        let input = self.window_state.take_egui_input(window);
+    fn render(&mut self, renderer: &mut Renderer) {
+        let input = self.window_state.take_egui_input(renderer.window);
         let output = {
             use ColorMap::*;
             self.context.run(input, |ctx| {
                 egui::Area::new("testitout").show(ctx, |ui| {
                     egui::ComboBox::from_label("Colormap")
-                        .selected_text(format!("{:?}", state.color_map))
+                        .selected_text(format!("{:?}", renderer.state.color_map))
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut state.color_map, Rgb, Rgb.to_string());
-                            ui.selectable_value(&mut state.color_map, Blue, Blue.to_string());
+                            ui.selectable_value(
+                                &mut renderer.state.color_map,
+                                Rgb,
+                                Rgb.to_string(),
+                            );
+                            ui.selectable_value(
+                                &mut renderer.state.color_map,
+                                Blue,
+                                Blue.to_string(),
+                            );
                         });
                 });
             })
@@ -118,7 +109,7 @@ impl Layer for Gui {
 
         for (id, image_delta) in &output.textures_delta.set {
             self.renderer
-                .update_texture(device, queue, *id, image_delta);
+                .update_texture(renderer.device, renderer.queue, *id, image_delta);
         }
 
         for id in &output.textures_delta.free {
@@ -126,31 +117,33 @@ impl Layer for Gui {
         }
 
         let screen_descriptor = egui_wgpu::renderer::ScreenDescriptor {
-            size_in_pixels: [config.width, config.height],
+            size_in_pixels: [renderer.config.width, renderer.config.height],
             pixels_per_point: 2.0, //self.scale_factor,
         };
 
         self.renderer.update_buffers(
-            device,
-            queue,
-            encoder,
+            renderer.device,
+            renderer.queue,
+            renderer.encoder,
             clipped_primitives.as_slice(),
             &screen_descriptor,
         );
 
         {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-            });
+            let mut render_pass = renderer
+                .encoder
+                .begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: None,
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: renderer.view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: true,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                });
 
             self.renderer.render(
                 &mut render_pass,

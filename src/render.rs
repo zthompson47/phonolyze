@@ -8,20 +8,17 @@ use crate::{
     Cli,
 };
 
+pub struct Renderer<'a> {
+    pub view: &'a wgpu::TextureView,
+    pub encoder: &'a mut wgpu::CommandEncoder,
+    pub window: &'a Window,
+    pub device: &'a wgpu::Device,
+    pub queue: &'a wgpu::Queue,
+    pub config: &'a wgpu::SurfaceConfiguration,
+    pub state: &'a mut LayerState,
+}
+
 pub trait Layer {
-    fn render(
-        &mut self,
-        view: &wgpu::TextureView,
-        encoder: &mut wgpu::CommandEncoder,
-        window: &Window,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        config: &wgpu::SurfaceConfiguration,
-        state: &mut LayerState,
-    );
-
-    fn resize(&mut self, _new_size: PhysicalSize<u32>, _queue: &wgpu::Queue) {}
-
     fn handle_event(
         &mut self,
         _event: &WindowEvent,
@@ -32,6 +29,8 @@ pub trait Layer {
             repaint: false,
         }
     }
+    fn render(&mut self, renderer: &mut Renderer);
+    fn resize(&mut self, _new_size: PhysicalSize<u32>, _queue: &wgpu::Queue) {}
     //fn update(&mut self, _delta: instant::Duration, _state: &mut LayerState) {}
 }
 
@@ -100,15 +99,7 @@ impl RenderView {
 
         surface.configure(&device, &config);
 
-        //let egui_context = egui::Context::default();
-        //let egui_renderer = egui_wgpu::Renderer::new(&device, config.format, None, 1);
-
-        //let audio_info = audio.info();
-
-        //use plotters::prelude::*;
-
         //let noise = simdnoise::NoiseBuilder::fbm_1d(256).generate_scaled(0.0, 1.0);
-
         /*let background_image = noise::NoiseKernelV1 {
             out_width: 1400,
             out_height: 1400,
@@ -132,10 +123,9 @@ impl RenderView {
         let mut audio = AudioFile::open(audio_file).await.unwrap();
         let signal = audio.dump_mono();
         let analysis = stft(&signal, "hamming", cli.window_size, cli.jump_size);
-
+        //dbg!(analysis.0.len());
+        //dbg!(analysis.0[0].len());
         /*
-        dbg!(analysis.0.len());
-        dbg!(analysis.0[0].len());
         use ordered_float::OrderedFloat;
         dbg!(analysis
             .0
@@ -148,22 +138,15 @@ impl RenderView {
             .map(|x| { x.iter().map(|x| OrderedFloat(*x)).max() })
             .max());
             */
+
         let _grad = colorgrad::CustomGradient::new()
             .html_colors(&["deeppink", "gold", "seagreen"])
             .build()
             .unwrap();
         let _grad = colorgrad::viridis();
+
         let grad = colorgrad::CustomGradient::new()
             .colors(&[
-                //colorgrad::Color::new(1., 0., 0., 0.),
-                //colorgrad::Color::new(0., 1., 0., 0.2),
-                //colorgrad::Color::new(0., 0., 1., 1.),
-                //colorgrad::Color::new(0., 0., 0., 1.),
-
-                //colorgrad::Color::new(0., 0., 0., 0.7),
-                //colorgrad::Color::new(0., 0., 1., 0.8),
-                //colorgrad::Color::new(0., 1., 0., 0.9),
-                //colorgrad::Color::new(1., 0., 0., 1.),
                 colorgrad::Color::new(0., 0., 0., 1.),
                 colorgrad::Color::new(0., 0., 1., 1.),
                 colorgrad::Color::new(0., 1., 0., 1.),
@@ -289,19 +272,18 @@ impl RenderView {
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
-        self.layers.iter_mut().for_each(|layer| {
-            layer.render(
-                &view,
-                &mut encoder,
-                window,
-                &self.device,
-                &self.queue,
-                &self.config,
-                &mut self.layer_state,
-                //self,
-            );
+        let mut renderer = Renderer {
+            view: &view,
+            encoder: &mut encoder,
+            window,
+            device: &self.device,
+            queue: &self.queue,
+            config: &self.config,
+            state: &mut self.layer_state,
+        };
 
-            //layer.render(&view, &mut endcoder, &mut renderer);
+        self.layers.iter_mut().for_each(|layer| {
+            layer.render(&mut renderer);
         });
 
         self.queue.submit(std::iter::once(encoder.finish()));

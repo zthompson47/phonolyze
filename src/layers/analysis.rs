@@ -3,11 +3,10 @@ use wgpu::{util::DeviceExt, PrimitiveTopology};
 use winit::{
     dpi::PhysicalSize,
     event::{VirtualKeyCode, WindowEvent},
-    window::Window,
 };
 
 use crate::{
-    render::{Layer, LayerMode, LayerState},
+    render::{Layer, LayerMode, Renderer},
     scale::Scale,
 };
 
@@ -254,36 +253,29 @@ impl Layer for AnalysisLayerPass {
         }
     }
 
-    fn render(
-        &mut self,
-        view: &wgpu::TextureView,
-        encoder: &mut wgpu::CommandEncoder,
-        _window: &Window,
-        _device: &wgpu::Device,
-        _queue: &wgpu::Queue,
-        _config: &wgpu::SurfaceConfiguration,
-        _state: &mut LayerState,
-    ) {
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Render Pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    store: true,
-                    load: match self.layer_mode {
-                        LayerMode::AlphaBlend => wgpu::LoadOp::Load,
-                        LayerMode::Background => wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 1.0,
-                        }),
+    fn render(&mut self, renderer: &mut Renderer) {
+        let mut render_pass = renderer
+            .encoder
+            .begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: renderer.view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        store: true,
+                        load: match self.layer_mode {
+                            LayerMode::AlphaBlend => wgpu::LoadOp::Load,
+                            LayerMode::Background => wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 0.0,
+                                g: 0.0,
+                                b: 0.0,
+                                a: 1.0,
+                            }),
+                        },
                     },
-                },
-            })],
-            depth_stencil_attachment: None,
-        });
+                })],
+                depth_stencil_attachment: None,
+            });
 
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
