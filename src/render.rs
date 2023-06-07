@@ -1,12 +1,17 @@
-use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
+use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::{
     audio::AudioFile,
     fft::stft,
     file::load_image,
-    layers::{analysis::AnalysisLayerPass, gui::ColorMap, scaled_image::ScaledImagePass},
+    layers::{
+        analysis::AnalysisLayerPass, scaled_image::ScaledImagePass, Layer, LayerMode, LayerState,
+    },
     Cli,
 };
+
+#[allow(dead_code)]
+const ASDF: u8 = 42;
 
 pub struct Renderer<'a> {
     pub view: &'a wgpu::TextureView,
@@ -16,33 +21,6 @@ pub struct Renderer<'a> {
     pub queue: &'a wgpu::Queue,
     pub config: &'a wgpu::SurfaceConfiguration,
     pub state: &'a mut LayerState,
-}
-
-pub trait Layer {
-    fn handle_event(
-        &mut self,
-        _event: &WindowEvent,
-        _queue: &wgpu::Queue,
-    ) -> egui_winit::EventResponse {
-        egui_winit::EventResponse {
-            consumed: false,
-            repaint: false,
-        }
-    }
-    fn render(&mut self, renderer: &mut Renderer);
-    fn resize(&mut self, _new_size: PhysicalSize<u32>, _queue: &wgpu::Queue) {}
-    //fn update(&mut self, _delta: instant::Duration, _state: &mut LayerState) {}
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum LayerMode {
-    Background,
-    AlphaBlend,
-}
-
-#[derive(Default)]
-pub struct LayerState {
-    pub color_map: ColorMap,
 }
 
 pub struct RenderView {
