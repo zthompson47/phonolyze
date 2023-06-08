@@ -1,17 +1,6 @@
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::{
-    audio::AudioFile,
-    fft::stft,
-    file::load_image,
-    layers::{
-        analysis::AnalysisLayerPass, scaled_image::ScaledImagePass, Layer, LayerMode, LayerState,
-    },
-    Cli,
-};
-
-#[allow(dead_code)]
-const ASDF: u8 = 42;
+use crate::layers::{Layer, LayerState};
 
 pub struct Renderer<'a> {
     pub view: &'a wgpu::TextureView,
@@ -34,7 +23,7 @@ pub struct RenderView {
 }
 
 impl RenderView {
-    pub async fn new(window: &winit::window::Window, audio_file: &str, cli: &Cli) -> Self {
+    pub async fn new(window: &winit::window::Window) -> Self {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
@@ -77,126 +66,13 @@ impl RenderView {
 
         surface.configure(&device, &config);
 
-        //let noise = simdnoise::NoiseBuilder::fbm_1d(256).generate_scaled(0.0, 1.0);
-        /*let background_image = noise::NoiseKernelV1 {
-            out_width: 1400,
-            out_height: 1400,
-            scale_x: 10,  // 30, // 10
-            scale_y: 280, //150, // 10
-            ..noise::NoiseKernelV1::default()
-        }
-        .make_noise(|tl, _bl, tr, br, d_tl, _d_bl, d_tr, d_br| {
-            let r = tl.0[0] as f32 * d_tl;
-            let g = br.0[0] as f32 * d_br;
-            let b = tr.0[0] as f32 * d_tr;
-            let a = br.0[0] as f32;
-            Rgba::from([
-                r.floor() as u8,
-                g.floor() as u8,
-                b.floor() as u8,
-                a.floor() as u8,
-            ])
-        });*/
-
-        let mut audio = AudioFile::open(audio_file).await.unwrap();
-        let signal = audio.dump_mono();
-        let analysis = stft(&signal, "hamming", cli.window_size, cli.jump_size);
-        //dbg!(analysis.0.len());
-        //dbg!(analysis.0[0].len());
-        /*
-        use ordered_float::OrderedFloat;
-        dbg!(analysis
-            .0
-            .iter()
-            .map(|x| { x.iter().map(|x| OrderedFloat(*x)).min() })
-            .min());
-        dbg!(analysis
-            .0
-            .iter()
-            .map(|x| { x.iter().map(|x| OrderedFloat(*x)).max() })
-            .max());
-            */
-
-        let _grad = colorgrad::CustomGradient::new()
-            .html_colors(&["deeppink", "gold", "seagreen"])
-            .build()
-            .unwrap();
-        let _grad = colorgrad::viridis();
-
-        let grad = colorgrad::CustomGradient::new()
-            .colors(&[
-                colorgrad::Color::new(0., 0., 0., 1.),
-                colorgrad::Color::new(0., 0., 1., 1.),
-                colorgrad::Color::new(0., 1., 0., 1.),
-                colorgrad::Color::new(1., 0., 0., 1.),
-            ])
-            .domain(&[-150., -80., -40., 0.])
-            .build()
-            .unwrap();
-
-        let new_analysis_pass = AnalysisLayerPass::new(
-            Some("Analysis Pass"),
-            analysis.0,
-            &device,
-            &queue,
-            &config,
-            LayerMode::AlphaBlend,
-            grad,
-        );
-
-        //analysis.0.truncate(max_width as usize);
-        //analysis.1.truncate(max_width as usize);
-
-        // Map t which is in range [a, b] to range [c, d]
-        fn _remap(t: f64, a: f64, b: f64, c: f64, d: f64) -> f64 {
-            (t - a) * ((d - c) / (b - a)) + c
-        }
-
-        /*
-        let analysis_image = RgbaImage::from_fn(
-            analysis.0.len() as u32,
-            (analysis.0[0].len() as f32 * 0.6) as u32,
-            |x, y| {
-                let val = analysis.0[x as usize][y as usize] as f64;
-                //val = remap(val, -140., 0., 0., 1.);
-                Rgba(grad.at(val).to_rgba8())
-            },
-        );
-        //let analysis_pass = ShowAnalysisPass::new(
-        let analysis_pass = ScaledImagePass::new(
-            Some("Analysis Image"),
-            image::DynamicImage::ImageRgba8(analysis_image),
-            &device,
-            &queue,
-            &config,
-            LayerMode::AlphaBlend,
-        );
-        */
-
-        //let background_image = load_image("images/noise3.png").await;
-        let background_image = load_image("images/baba.png").await.unwrap();
-        let background_pass = ScaledImagePass::new(
-            Some("Background Image"),
-            background_image,
-            &device,
-            &queue,
-            &config,
-            LayerMode::Background,
-        );
-
-        let layers = vec![
-            Box::new(background_pass) as Box<dyn Layer>,
-            //Box::new(analysis_pass) as Box<dyn Layer>,
-            Box::new(new_analysis_pass) as Box<dyn Layer>,
-        ];
-
         RenderView {
             size,
             surface,
             device,
             queue,
             config,
-            layers,
+            layers: vec![],
             layer_state: LayerState::default(),
         }
     }
@@ -268,7 +144,15 @@ impl RenderView {
         frame.present();
     }
 
-    pub fn push_layer(&mut self, layer: Box<dyn Layer>) {
-        self.layers.push(layer);
+    pub fn capture_layer<F>(&mut self, f: F)
+    where
+        F: FnOnce(&wgpu::Device, &wgpu::Queue, &wgpu::SurfaceConfiguration) -> Box<dyn Layer>,
+    {
+        self.layers.push(f(&self.device, &self.queue, &self.config));
     }
+}
+
+// Map t which is in range [a, b] to range [c, d]
+fn _remap(t: f64, a: f64, b: f64, c: f64, d: f64) -> f64 {
+    (t - a) * ((d - c) / (b - a)) + c
 }
