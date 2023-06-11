@@ -2,4 +2,4 @@
 *.bak
 /scratch
 /media
-/log.txt
+log.txt
