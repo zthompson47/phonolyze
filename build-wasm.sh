@@ -1,2 +1,2 @@
 #!/bin/sh
-wasm-pack build --target web --out-dir www/pkg
+wasm-pack build --dev --target web --out-dir www/pkg
