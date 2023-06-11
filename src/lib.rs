@@ -16,12 +16,18 @@ use clap::Parser;
 use image::{Rgba, RgbaImage};
 use winit::{event_loop::EventLoop, window::WindowBuilder};
 
+#[allow(unused_imports)]
 use crate::{
     audio::AudioFile,
     event::EventHandler,
     fft::stft,
     file::load_image,
-    layers::{analysis::AnalysisLayerPass, gui::Gui, scaled_image::ScaledImagePass, LayerMode},
+    layers::{
+        analysis::AnalysisLayerPass,
+        gui::{ColorMap, Gui},
+        scaled_image::ScaledImagePass,
+        LayerMode,
+    },
     render::RenderView,
 };
 
@@ -99,21 +105,12 @@ pub async fn main() {
     #[cfg(not(target_arch = "wasm32"))]
     let _audio_player = crate::audio::AudioPlayer::from(&cli);
 
-    //let background_image = load_image("images/noise3.png").await;
-    let background_image = load_image("images/baba.png").await.unwrap();
+    let background_image = load_image("images/noise3.png").await.unwrap();
+    //let background_image = load_image("images/baba.png").await.unwrap();
     let mut audio = AudioFile::open(&cli.audio_file).await.unwrap();
     let signal = audio.dump_mono();
     let analysis = stft(&signal, "hamming", cli.window_size, cli.jump_size);
-    let grad = colorgrad::CustomGradient::new()
-        .colors(&[
-            colorgrad::Color::new(0., 0., 0., 1.),
-            colorgrad::Color::new(0., 0., 1., 1.),
-            colorgrad::Color::new(0., 1., 0., 1.),
-            colorgrad::Color::new(1., 0., 0., 1.),
-        ])
-        .domain(&[-150., -80., -40., 0.])
-        .build()
-        .unwrap();
+    let grad = ColorMap::Rgb.grad();
 
     render_view.capture_layer(move |device, queue, config, _scale_factor| {
         let background_image = ScaledImagePass::new(
@@ -139,7 +136,7 @@ pub async fn main() {
         },
     );
 
-    render_view.capture_layer(move |device, queue, config| {
+    render_view.capture_layer(move |device, queue, config, _scale_factor| {
         let analysis_pass_scaled = ScaledImagePass::new(
             Some("Analysis Image Scaled"),
             image::DynamicImage::ImageRgba8(analysis_image),

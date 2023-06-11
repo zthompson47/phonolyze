@@ -36,6 +36,7 @@ pub enum ColorMap {
     #[default]
     Blue,
     Rgb,
+    RgbInv,
 }
 
 impl ColorMap {
@@ -44,8 +45,8 @@ impl ColorMap {
         match &self {
             Self::Rgb => colorgrad::CustomGradient::new()
                 .colors(&[
-                    colorgrad::Color::new(0.0, 0.0, 0.0, 1.0),
-                    colorgrad::Color::new(0.0, 0.0, 1.0, 1.0),
+                    colorgrad::Color::new(0.0, 0.0, 0.0, 0.0),
+                    colorgrad::Color::new(0.0, 0.0, 1.0, 0.8),
                     colorgrad::Color::new(0.0, 1.0, 0.0, 1.0),
                     colorgrad::Color::new(1.0, 0.0, 0.0, 1.0),
                 ])
@@ -55,9 +56,19 @@ impl ColorMap {
             Self::Blue => colorgrad::CustomGradient::new()
                 .colors(&[
                     colorgrad::Color::new(0.0, 0.0, 0.0, 0.0),
-                    colorgrad::Color::new(0.0, 0.0, 1.0, 0.5),
+                    colorgrad::Color::new(0.0, 0.0, 1.0, 0.8),
                     colorgrad::Color::new(0.0, 0.2, 0.5, 1.0),
                     colorgrad::Color::new(0.2, 0.2, 1.0, 1.0),
+                ])
+                .domain(&[-150., -80., -40., 0.])
+                .build()
+                .unwrap(),
+            Self::RgbInv => colorgrad::CustomGradient::new()
+                .colors(&[
+                    colorgrad::Color::new(1.0, 0.0, 0.0, 1.0),
+                    colorgrad::Color::new(0.0, 1.0, 0.0, 1.0),
+                    colorgrad::Color::new(0.0, 0.0, 1.0, 0.8),
+                    colorgrad::Color::new(0.0, 0.0, 0.0, 0.0),
                 ])
                 .domain(&[-150., -80., -40., 0.])
                 .build()
@@ -71,6 +82,7 @@ impl Display for ColorMap {
         match &self {
             Self::Rgb => write!(f, "Rgb"),
             Self::Blue => write!(f, "Blue"),
+            Self::RgbInv => write!(f, "RgbInv"),
         }
     }
 }
@@ -102,6 +114,11 @@ impl Layer for Gui {
                                 &mut renderer.state.color_map,
                                 Blue,
                                 Blue.to_string(),
+                            );
+                            ui.selectable_value(
+                                &mut renderer.state.color_map,
+                                RgbInv,
+                                RgbInv.to_string(),
                             );
                         });
                 });

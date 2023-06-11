@@ -33,7 +33,9 @@ pub struct AnalysisLayerPass {
 pub struct Vertex {
     position: [f32; 4],
     //level: f32,
+    //_padding: [f32; 3],
     color: [f32; 4],
+    level: f32,
 }
 
 impl Vertex {
@@ -52,13 +54,11 @@ impl Vertex {
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float32x4,
                 },
-                /*
                 wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<f32>() as wgpu::BufferAddress,
+                    offset: std::mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
                     shader_location: 2,
-                    format: wgpu::VertexFormat::Float32x4,
+                    format: wgpu::VertexFormat::Float32,
                 },
-                */
             ],
         }
     }
@@ -224,18 +224,20 @@ fn update_analysis(
 
     analysis.iter().take(w).enumerate().for_each(|(i, x)| {
         x.iter().take(h).enumerate().for_each(|(j, y)| {
-            let color = gradient.at(*y as f64).to_array().map(|x| x as f32);
+            let level = *y;
+            let color = gradient.at(level as f64).to_array().map(|x| x as f32);
             //color[3] = 0.8 + *y * 0.2;
 
             vertices.push(Vertex {
                 position: [
-                    (i as f32 / (w as f32 - 1.)) * 2. - 1., // - 0.5,
-                    (j as f32 / (h as f32 - 1.)) * 2. - 1., // - 0.5,
-                    0.,
-                    0.,
+                    (i as f32 / (w as f32 - 1.0)) * 2.0 - 1.0, // - 0.5,
+                    (j as f32 / (h as f32 - 1.0)) * 2.0 - 1.0, // - 0.5,
+                    0.0,
+                    1.0,
                 ],
-                //level,
+                //_padding: [0.0; 3],
                 color,
+                level,
             });
             if i < w - 1 && j < h - 1 {
                 let bl = (h * i + j) as u32;

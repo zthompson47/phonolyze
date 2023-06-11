@@ -102,6 +102,7 @@ impl RenderView {
         self.layers.iter_mut().for_each(|layer| {
             layer.update(delta, &mut self.layer_state, &self.device);
         });
+
         /*
         let shader = self
             .device

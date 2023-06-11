@@ -1,7 +1,7 @@
 struct VertexInput {
     @location(0) clip_position: vec4<f32>,
-    //@location(1) level: f32,
     @location(1) color: vec4<f32>,
+    @location(2) level: f32,
 };
 
 struct VertexOutput {
@@ -13,19 +13,15 @@ struct VertexOutput {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    //out.clip_position = vec4<f32>(in.clip_position, 0.0, 1.0);
-    out.clip_position = vec4<f32>(
-        //in.clip_position.x * 2.0 - 1.0,
-        //in.clip_position.y * 2.0 - 1.0,
-        //in.clip_position.x * 4.0 - 2.0,
-        //in.clip_position.y * 4.0 - 2.0,
-        in.clip_position.x,
-        in.clip_position.y,
-        0.0,
-        1.0
-    );
-    //out.level = in.level;
-    out.level = 0.0;
+    //out.clip_position = vec4<f32>(
+    //    in.clip_position.x,
+    //    in.clip_position.y,
+    //    0.0,
+    //    1.0
+    //);
+    out.clip_position = in.clip_position;
+    out.level = in.level;
+    //out.level = 1.0;
     out.color = in.color;
     return out;
 }
