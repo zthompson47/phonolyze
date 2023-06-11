@@ -11,6 +11,8 @@ use crate::{
     scale::Scale,
 };
 
+use super::LayerState;
+
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct AnalysisLayerPass {
@@ -22,8 +24,8 @@ pub struct AnalysisLayerPass {
     pipeline: wgpu::RenderPipeline,
     layer_mode: LayerMode,
     used: bool,
-    vertices: Vec<Vertex>,
-    gradient: colorgrad::Gradient,
+    //vertices: Vec<Vertex>,
+    //gradient: colorgrad::Gradient,
 }
 
 #[repr(C)]
@@ -85,6 +87,10 @@ impl AnalysisLayerPass {
             device,
         );
 
+        let (vertex_buffer, index_buffer, num_indices) =
+            update_analysis(&analysis, gradient, device);
+
+        /*
         let mut vertices = Vec::new();
         let mut indices: Vec<u32> = vec![];
 
@@ -142,6 +148,7 @@ impl AnalysisLayerPass {
         });
         let num_indices = indices.len() as u32;
 
+        */
         let shader = device.create_shader_module(wgpu::include_wgsl!("analysis.wgsl"));
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -189,14 +196,72 @@ impl AnalysisLayerPass {
             pipeline,
             layer_mode,
             used: false,
-            vertices,
-            gradient,
+            //vertices,
+            //gradient,
         };
 
         pass.scale.unscale(queue);
 
         pass
     }
+}
+
+fn update_analysis(
+    analysis: &Vec<Vec<f32>>,
+    gradient: colorgrad::Gradient,
+    device: &wgpu::Device,
+) -> (wgpu::Buffer, wgpu::Buffer, u32) {
+    let mut vertices = Vec::new();
+    let mut indices: Vec<u32> = vec![];
+
+    let dimensions = PhysicalSize {
+        width: analysis.len() as u32,
+        height: analysis[0].len() as u32,
+    };
+
+    let w = dimensions.width as usize;
+    let h = dimensions.height as usize;
+
+    analysis.iter().take(w).enumerate().for_each(|(i, x)| {
+        x.iter().take(h).enumerate().for_each(|(j, y)| {
+            let color = gradient.at(*y as f64).to_array().map(|x| x as f32);
+            //color[3] = 0.8 + *y * 0.2;
+
+            vertices.push(Vertex {
+                position: [
+                    (i as f32 / (w as f32 - 1.)) * 2. - 1., // - 0.5,
+                    (j as f32 / (h as f32 - 1.)) * 2. - 1., // - 0.5,
+                    0.,
+                    0.,
+                ],
+                //level,
+                color,
+            });
+            if i < w - 1 && j < h - 1 {
+                let bl = (h * i + j) as u32;
+                let br = bl + h as u32;
+                let tl = bl + 1;
+                let tr = br + 1;
+
+                indices.extend_from_slice(&[[tl, bl, tr], [tr, bl, br]].concat());
+            }
+        })
+    });
+
+    let label = Some("Update Analysis");
+    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label,
+        contents: bytemuck::cast_slice(&vertices),
+        usage: wgpu::BufferUsages::VERTEX,
+    });
+    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label,
+        contents: bytemuck::cast_slice(&indices),
+        usage: wgpu::BufferUsages::INDEX,
+    });
+    let num_indices = indices.len() as u32;
+
+    (vertex_buffer, index_buffer, num_indices)
 }
 
 impl Layer for AnalysisLayerPass {
@@ -251,6 +316,14 @@ impl Layer for AnalysisLayerPass {
         egui_winit::EventResponse {
             consumed: false,
             repaint: false,
+        }
+    }
+
+    fn update(&mut self, _delta: instant::Duration, state: &mut LayerState, device: &wgpu::Device) {
+        if let Some(new_color_map) = state.update_color_map() {
+            dbg!(new_color_map);
+            (self.vertex_buffer, self.index_buffer, self.num_indices) =
+                update_analysis(&self.analysis, new_color_map.grad(), device);
         }
     }
 

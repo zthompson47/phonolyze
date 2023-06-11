@@ -1,6 +1,10 @@
+use std::fmt::Display;
+
 use winit::event::WindowEvent;
 
-use crate::{layers::Layer, render::Renderer};
+use crate::render::Renderer;
+
+use super::Layer;
 
 pub struct Gui {
     context: egui::Context,
@@ -22,7 +26,7 @@ impl Gui {
     }
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub enum ColorMap {
     Rgb,
     #[default]
@@ -57,7 +61,7 @@ impl ColorMap {
     }
 }
 
-impl std::fmt::Display for ColorMap {
+impl Display for ColorMap {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
             Self::Rgb => write!(f, "Rgb"),
@@ -73,11 +77,6 @@ impl Layer for Gui {
         _queue: &wgpu::Queue,
     ) -> egui_winit::EventResponse {
         self.window_state.on_event(&self.context, event)
-        /*let response = self.window_state.on_event(&self.context, event);
-
-        self.repaint = response.repaint;
-
-        response.consumed*/
     }
 
     fn render(&mut self, renderer: &mut Renderer) {
@@ -103,6 +102,11 @@ impl Layer for Gui {
                 });
             })
         };
+
+        // Keep redrawing for animations.  TODO: set a timer for non-zero durations
+        if output.repaint_after.is_zero() {
+            renderer.window.request_redraw();
+        }
 
         let clipped_primitives: Vec<egui::epaint::ClippedPrimitive> =
             self.context.tessellate(output.shapes);
@@ -152,4 +156,6 @@ impl Layer for Gui {
             );
         }
     }
+
+    fn resize(&mut self, _new_size: winit::dpi::PhysicalSize<u32>, _queue: &wgpu::Queue) {}
 }

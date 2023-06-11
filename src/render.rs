@@ -41,6 +41,9 @@ impl RenderView {
             .await
             .unwrap();
         let limits = wgpu::Limits::downlevel_webgl2_defaults();
+
+        let _asdf: u32 = 47;
+
         let _max_width = limits.max_texture_dimension_2d;
         let (device, queue) = adapter
             .request_device(
@@ -63,6 +66,8 @@ impl RenderView {
             alpha_mode: capabilities.alpha_modes[0],
             view_formats: vec![capabilities.formats[0]],
         };
+
+        dbg!(config.usage, config.format, size.width);
 
         surface.configure(&device, &config);
 
@@ -94,9 +99,9 @@ impl RenderView {
     pub fn update(&mut self, delta: instant::Duration) {
         let _step = delta.as_secs_f32();
 
-        //self.layers.iter_mut().for_each(|layer| {
-        //    layer.update(delta, &mut self.layer_state);
-        //});
+        self.layers.iter_mut().for_each(|layer| {
+            layer.update(delta, &mut self.layer_state, &self.device);
+        });
         /*
         let shader = self
             .device
@@ -150,9 +155,4 @@ impl RenderView {
     {
         self.layers.push(f(&self.device, &self.queue, &self.config));
     }
-}
-
-// Map t which is in range [a, b] to range [c, d]
-fn _remap(t: f64, a: f64, b: f64, c: f64, d: f64) -> f64 {
-    (t - a) * ((d - c) / (b - a)) + c
 }

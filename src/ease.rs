@@ -14,3 +14,8 @@ pub fn inv_quint_ease_in(x: f32, min: f32, max: f32) -> f32 {
     assert!(x <= max);
     ((x - min) / (max - min)).powf(1. / 5.)
 }
+
+// Map t which is in range [a, b] to range [c, d]
+fn _remap(t: f64, a: f64, b: f64, c: f64, d: f64) -> f64 {
+    (t - a) * ((d - c) / (b - a)) + c
+}
