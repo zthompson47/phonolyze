@@ -115,7 +115,7 @@ pub async fn main() {
         .build()
         .unwrap();
 
-    render_view.capture_layer(move |device, queue, config| {
+    render_view.capture_layer(move |device, queue, config, _scale_factor| {
         let background_image = ScaledImagePass::new(
             Some("Background Image"),
             background_image,
@@ -153,7 +153,7 @@ pub async fn main() {
     });
     */
 
-    render_view.capture_layer(move |device, queue, config| {
+    render_view.capture_layer(move |device, queue, config, _scale_factor| {
         Box::new(AnalysisLayerPass::new(
             Some("Analysis Pass"),
             analysis.0,
@@ -165,8 +165,8 @@ pub async fn main() {
         ))
     });
 
-    render_view.capture_layer(|device, _queue, config| {
-        Box::new(Gui::new(device, &event_loop, config.format))
+    render_view.capture_layer(|device, _queue, config, scale_factor| {
+        Box::new(Gui::new(device, &event_loop, config.format, scale_factor))
     });
 
     let mut event_handler = EventHandler::new(window, render_view);

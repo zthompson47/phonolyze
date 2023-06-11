@@ -10,7 +10,6 @@ pub struct EventHandler {
     pub window: Window,
     pub render_view: RenderView,
     last_updated: instant::Instant,
-    //egui_state: egui_winit::State,
 }
 
 impl EventHandler {

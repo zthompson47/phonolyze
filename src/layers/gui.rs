@@ -17,20 +17,25 @@ impl Gui {
         device: &wgpu::Device,
         event_loop: &winit::event_loop::EventLoop<()>,
         texture_format: wgpu::TextureFormat,
+        scale_factor: f32,
     ) -> Self {
         Gui {
             context: egui::Context::default(),
             renderer: egui_wgpu::Renderer::new(device, texture_format, None, 1),
-            window_state: egui_winit::State::new(event_loop),
+            window_state: {
+                let mut window_state = egui_winit::State::new(event_loop);
+                window_state.set_pixels_per_point(scale_factor);
+                window_state
+            },
         }
     }
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub enum ColorMap {
-    Rgb,
     #[default]
     Blue,
+    Rgb,
 }
 
 impl ColorMap {

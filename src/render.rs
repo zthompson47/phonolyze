@@ -13,17 +13,19 @@ pub struct Renderer<'a> {
 }
 
 pub struct RenderView {
-    size: winit::dpi::PhysicalSize<u32>,
+    size: PhysicalSize<u32>,
     pub surface: wgpu::Surface,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub layers: Vec<Box<dyn Layer>>,
     pub layer_state: LayerState,
+    pub scale_factor: f32,
 }
 
 impl RenderView {
     pub async fn new(window: &winit::window::Window) -> Self {
+        let scale_factor = window.scale_factor() as f32;
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
@@ -41,9 +43,6 @@ impl RenderView {
             .await
             .unwrap();
         let limits = wgpu::Limits::downlevel_webgl2_defaults();
-
-        let _asdf: u32 = 47;
-
         let _max_width = limits.max_texture_dimension_2d;
         let (device, queue) = adapter
             .request_device(
@@ -79,6 +78,7 @@ impl RenderView {
             config,
             layers: vec![],
             layer_state: LayerState::default(),
+            scale_factor,
         }
     }
 
@@ -151,8 +151,8 @@ impl RenderView {
 
     pub fn capture_layer<F>(&mut self, f: F)
     where
-        F: FnOnce(&wgpu::Device, &wgpu::Queue, &wgpu::SurfaceConfiguration) -> Box<dyn Layer>,
+        F: FnOnce(&wgpu::Device, &wgpu::Queue, &wgpu::SurfaceConfiguration, f32) -> Box<dyn Layer>,
     {
-        self.layers.push(f(&self.device, &self.queue, &self.config));
+        self.layers.push(f(&self.device, &self.queue, &self.config, self.scale_factor));
     }
 }
