@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use winit::event::WindowEvent;
 
-use crate::render::Renderer;
+use crate::{gradient::InnerGradient, render::Renderer};
 
 use super::Layer;
 
@@ -33,46 +33,37 @@ impl Gui {
 
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub enum ColorMap {
-    #[default]
     Blue,
+    #[default]
     Rgb,
     RgbInv,
 }
 
 impl ColorMap {
     #[allow(dead_code)]
-    pub fn grad(&self) -> colorgrad::Gradient {
+    pub fn grad(&self) -> InnerGradient {
         match &self {
-            Self::Rgb => colorgrad::CustomGradient::new()
-                .colors(&[
-                    colorgrad::Color::new(0.0, 0.0, 0.0, 0.0),
-                    colorgrad::Color::new(0.0, 0.0, 1.0, 0.8),
-                    colorgrad::Color::new(0.0, 1.0, 0.0, 1.0),
-                    colorgrad::Color::new(1.0, 0.0, 0.0, 1.0),
-                ])
-                .domain(&[-150., -80., -40., 0.])
-                .build()
-                .unwrap(),
-            Self::Blue => colorgrad::CustomGradient::new()
-                .colors(&[
-                    colorgrad::Color::new(0.0, 0.0, 0.0, 0.0),
-                    colorgrad::Color::new(0.0, 0.0, 1.0, 0.8),
-                    colorgrad::Color::new(0.0, 0.2, 0.5, 1.0),
-                    colorgrad::Color::new(0.2, 0.2, 1.0, 1.0),
-                ])
-                .domain(&[-150., -80., -40., 0.])
-                .build()
-                .unwrap(),
-            Self::RgbInv => colorgrad::CustomGradient::new()
-                .colors(&[
-                    colorgrad::Color::new(1.0, 0.0, 0.0, 1.0),
-                    colorgrad::Color::new(0.0, 1.0, 0.0, 1.0),
-                    colorgrad::Color::new(0.0, 0.0, 1.0, 0.8),
-                    colorgrad::Color::new(0.0, 0.0, 0.0, 0.0),
-                ])
-                .domain(&[-150., -80., -40., 0.])
-                .build()
-                .unwrap(),
+            Self::Rgb => InnerGradient {
+                r: [0.0, 0.0, 0.0, 1.0],
+                g: [0.0, 0.0, 1.0, 0.0],
+                b: [0.0, 1.0, 0.0, 0.0],
+                a: [0.0, 0.8, 1.0, 1.0],
+                domain: [-150.0, -80.0, -40.0, 0.0],
+            },
+            Self::Blue => InnerGradient {
+                r: [0.0, 0.0, 0.0, 0.2],
+                g: [0.0, 0.0, 0.2, 0.2],
+                b: [0.0, 1.0, 0.5, 1.0],
+                a: [0.0, 0.8, 1.0, 1.0],
+                domain: [-150.0, -80.0, -40.0, 0.0],
+            },
+            Self::RgbInv => InnerGradient {
+                r: [1.0, 0.0, 0.0, 0.0],
+                g: [0.0, 1.0, 0.0, 0.0],
+                b: [0.0, 0.0, 1.0, 0.0],
+                a: [1.0, 1.0, 0.8, 0.0],
+                domain: [-150.0, -80.0, -40.0, 0.0],
+            },
         }
     }
 }

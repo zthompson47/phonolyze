@@ -18,11 +18,7 @@ pub struct Gradient {
 }
 
 impl Gradient {
-    pub fn new(
-        label: Option<&str>,
-        inner: InnerGradient,
-        device: &wgpu::Device,
-    ) -> Self {
+    pub fn new(label: Option<&str>, inner: InnerGradient, device: &wgpu::Device) -> Self {
         Gradient {
             inner,
             buffer: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -31,6 +27,11 @@ impl Gradient {
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             }),
         }
+    }
+
+    pub fn update(&mut self, inner: InnerGradient, queue: &wgpu::Queue) {
+        self.inner = inner;
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
 
     pub fn binding_resource(&self) -> wgpu::BindingResource {

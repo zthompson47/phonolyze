@@ -100,7 +100,7 @@ impl RenderView {
         let _step = delta.as_secs_f32();
 
         self.layers.iter_mut().for_each(|layer| {
-            layer.update(delta, &mut self.layer_state, &self.device);
+            layer.update(delta, &mut self.layer_state, &self.device, &self.queue);
         });
 
         /*
@@ -154,6 +154,11 @@ impl RenderView {
     where
         F: FnOnce(&wgpu::Device, &wgpu::Queue, &wgpu::SurfaceConfiguration, f32) -> Box<dyn Layer>,
     {
-        self.layers.push(f(&self.device, &self.queue, &self.config, self.scale_factor));
+        self.layers.push(f(
+            &self.device,
+            &self.queue,
+            &self.config,
+            self.scale_factor,
+        ));
     }
 }

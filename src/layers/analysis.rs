@@ -77,17 +77,6 @@ impl AnalysisLayerPass {
         };
         let (vertex_buffer, index_buffer, num_indices) = update_analysis(&analysis, device);
         let shader = device.create_shader_module(wgpu::include_wgsl!("analysis.wgsl"));
-        /*let gradient = Gradient::new(
-            Some("BasicGradient"),
-            InnerGradient {
-                r: [1.0, 0.0, 0.0, 1.0],
-                g: [1.0, 0.0, 1.0, 0.0],
-                b: [1.0, 1.0, 0.0, 0.0],
-                a: [1.0, 0.8, 1.0, 1.0],
-                domain: [-150.0, -80.0, -40.0, 0.0],
-            },
-            device,
-        );*/
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label,
             entries: &[wgpu::BindGroupLayoutEntry {
@@ -247,11 +236,15 @@ impl Layer for AnalysisLayerPass {
         }
     }
 
-    fn update(&mut self, _delta: instant::Duration, state: &mut LayerState, device: &wgpu::Device) {
+    fn update(
+        &mut self,
+        _delta: instant::Duration,
+        state: &mut LayerState,
+        _device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) {
         if let Some(new_color_map) = state.update_color_map() {
-            dbg!(new_color_map);
-            (self.vertex_buffer, self.index_buffer, self.num_indices) =
-                update_analysis(&self.analysis, /*new_color_map.grad(),*/ device);
+            self.gradient.update(new_color_map.grad(), queue);
         }
     }
 
@@ -278,7 +271,6 @@ impl Layer for AnalysisLayerPass {
                 })],
                 depth_stencil_attachment: None,
             });
-
         render_pass.set_bind_group(0, &self.bind_group, &[]);
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));

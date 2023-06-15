@@ -24,6 +24,7 @@ pub trait Layer {
         _delta: instant::Duration,
         _state: &mut LayerState,
         _device: &wgpu::Device,
+        _queue: &wgpu::Queue,
     ) {
     }
 }

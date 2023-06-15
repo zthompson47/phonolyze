@@ -13,7 +13,7 @@ mod scale;
 mod vertex;
 
 use clap::Parser;
-use gradient::{Gradient, InnerGradient};
+use gradient::Gradient;
 #[allow(unused_imports)]
 use image::{Rgba, RgbaImage};
 use winit::{event_loop::EventLoop, window::WindowBuilder};
@@ -177,22 +177,7 @@ pub async fn main() {
             queue,
             config,
             LayerMode::AlphaBlend,
-            Gradient::new(
-                Some("BasicGradient"),
-                InnerGradient {
-                    //r: [0.0, 1.0, 1.0, 1.0],
-                    //g: [0.0, 0.0, 0.0, 0.0],
-                    //b: [0.0, 0.0, 0.0, 0.0],
-                    //a: [0.7, 1.0, 1.0, 1.0],
-                    //domain: [0.0, 0.33, 0.66, 1.0],
-                    r: [0.0, 0.0, 0.0, 1.0],
-                    g: [0.0, 0.0, 1.0, 0.0],
-                    b: [0.0, 1.0, 0.0, 0.0],
-                    a: [0.0, 0.8, 1.0, 1.0],
-                    domain: [-150.0, -80.0, -40.0, 0.0],
-                },
-                device,
-            ),
+            Gradient::new(Some("InitGradient"), ColorMap::default().grad(), device),
         ))
     });
 
