@@ -47,7 +47,6 @@ impl LayerState {
 
         if let Some(prev_color_map) = self.prev_color_map {
             if prev_color_map != self.color_map {
-                dbg!("different");
                 self.prev_color_map = Some(self.color_map);
                 result = self.prev_color_map;
             }

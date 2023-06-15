@@ -1,5 +1,5 @@
-use std::fmt::Display;
-
+use strum::IntoEnumIterator;
+use strum_macros::{Display, EnumIter};
 use winit::event::WindowEvent;
 
 use crate::{gradient::InnerGradient, render::Renderer};
@@ -31,12 +31,13 @@ impl Gui {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, EnumIter, Display, PartialEq)]
 pub enum ColorMap {
     Blue,
     #[default]
     Rgb,
     RgbInv,
+    Crazy,
 }
 
 impl ColorMap {
@@ -64,16 +65,13 @@ impl ColorMap {
                 a: [1.0, 1.0, 0.8, 0.0],
                 domain: [-150.0, -80.0, -40.0, 0.0],
             },
-        }
-    }
-}
-
-impl Display for ColorMap {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self {
-            Self::Rgb => write!(f, "Rgb"),
-            Self::Blue => write!(f, "Blue"),
-            Self::RgbInv => write!(f, "RgbInv"),
+            Self::Crazy => InnerGradient {
+                r: [1.0, 0.2, 0.8, 0.2],
+                g: [0.0, 1.0, 0.0, 0.5],
+                b: [0.2, 0.0, 0.7, 0.3],
+                a: [1.0, 1.0, 0.8, 0.0],
+                domain: [-150.0, -100.0, -80.0, 0.0],
+            },
         }
     }
 }
@@ -90,27 +88,18 @@ impl Layer for Gui {
     fn render(&mut self, renderer: &mut Renderer) {
         let input = self.window_state.take_egui_input(renderer.window);
         let output = {
-            use ColorMap::*;
             self.context.run(input, |ctx| {
                 egui::Area::new("testitout").show(ctx, |ui| {
                     egui::ComboBox::from_label("Colormap")
                         .selected_text(format!("{:?}", renderer.state.color_map))
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut renderer.state.color_map,
-                                Rgb,
-                                Rgb.to_string(),
-                            );
-                            ui.selectable_value(
-                                &mut renderer.state.color_map,
-                                Blue,
-                                Blue.to_string(),
-                            );
-                            ui.selectable_value(
-                                &mut renderer.state.color_map,
-                                RgbInv,
-                                RgbInv.to_string(),
-                            );
+                            for color in ColorMap::iter() {
+                                ui.selectable_value(
+                                    &mut renderer.state.color_map,
+                                    color,
+                                    color.to_string(),
+                                );
+                            }
                         });
                 });
             })

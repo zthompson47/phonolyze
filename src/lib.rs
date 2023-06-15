@@ -1,6 +1,3 @@
-//! crate docs
-#![warn(missing_docs)]
-
 mod audio;
 mod ease;
 mod event;
@@ -13,17 +10,14 @@ mod scale;
 mod vertex;
 
 use clap::Parser;
-use gradient::Gradient;
-#[allow(unused_imports)]
-use image::{Rgba, RgbaImage};
 use winit::{event_loop::EventLoop, window::WindowBuilder};
 
-#[allow(unused_imports)]
 use crate::{
     audio::AudioFile,
     event::EventHandler,
     fft::stft,
     file::load_image,
+    gradient::Gradient,
     layers::{
         analysis::AnalysisLayerPass,
         gui::{ColorMap, Gui},
@@ -62,7 +56,7 @@ pub struct Cli {
     play_audio: bool,
 }
 
-/// asdf
+/// Launch winit or wasm.
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn main() {
     // Configure logging
@@ -157,18 +151,6 @@ pub async fn main() {
     });
     */
 
-    /*
-    let mut analysis = vec![];
-    for _ in 0..500 {
-        let mut row = vec![];
-        for y in 0..=1000 {
-            row.push(y as f32 / 1000.0);
-        }
-        analysis.push(row);
-    }
-    */
-    //dbg!(&analysis);
-
     render_view.capture_layer(move |device, queue, config, _scale_factor| {
         Box::new(AnalysisLayerPass::new(
             Some("Analysis Pass"),
@@ -191,39 +173,3 @@ pub async fn main() {
         event_handler.handle_event(event, control_flow);
     });
 }
-
-//dbg!(analysis.0.len());
-//dbg!(analysis.0[0].len());
-/*
-use ordered_float::OrderedFloat;
-dbg!(analysis
-    .0
-    .iter()
-    .map(|x| { x.iter().map(|x| OrderedFloat(*x)).min() })
-    .min());
-dbg!(analysis
-    .0
-    .iter()
-    .map(|x| { x.iter().map(|x| OrderedFloat(*x)).max() })
-    .max());
-    */
-//let noise = simdnoise::NoiseBuilder::fbm_1d(256).generate_scaled(0.0, 1.0);
-/*let background_image = noise::NoiseKernelV1 {
-    out_width: 1400,
-    out_height: 1400,
-    scale_x: 10,  // 30, // 10
-    scale_y: 280, //150, // 10
-    ..noise::NoiseKernelV1::default()
-}
-.make_noise(|tl, _bl, tr, br, d_tl, _d_bl, d_tr, d_br| {
-    let r = tl.0[0] as f32 * d_tl;
-    let g = br.0[0] as f32 * d_br;
-    let b = tr.0[0] as f32 * d_tr;
-    let a = br.0[0] as f32;
-    Rgba::from([
-        r.floor() as u8,
-        g.floor() as u8,
-        b.floor() as u8,
-        a.floor() as u8,
-    ])
-});*/

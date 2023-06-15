@@ -271,6 +271,7 @@ impl Layer for AnalysisLayerPass {
                 })],
                 depth_stencil_attachment: None,
             });
+
         render_pass.set_bind_group(0, &self.bind_group, &[]);
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));

@@ -66,7 +66,7 @@ impl RenderView {
             view_formats: vec![capabilities.formats[0]],
         };
 
-        dbg!(config.usage, config.format, size.width);
+        //dbg!(config.usage, config.format, size.width);
 
         surface.configure(&device, &config);
 
