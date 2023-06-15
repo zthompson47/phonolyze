@@ -6,12 +6,14 @@ mod ease;
 mod event;
 mod fft;
 mod file;
+mod gradient;
 mod layers;
 mod render;
 mod scale;
 mod vertex;
 
 use clap::Parser;
+use gradient::{Gradient, InnerGradient};
 #[allow(unused_imports)]
 use image::{Rgba, RgbaImage};
 use winit::{event_loop::EventLoop, window::WindowBuilder};
@@ -109,8 +111,13 @@ pub async fn main() {
     //let background_image = load_image("images/baba.png").await.unwrap();
     let mut audio = AudioFile::open(&cli.audio_file).await.unwrap();
     let signal = audio.dump_mono();
+    //let grad = ColorMap::Rgb.grad();
+
     let analysis = stft(&signal, "hamming", cli.window_size, cli.jump_size);
-    let grad = ColorMap::Rgb.grad();
+
+    //dbg!(analysis.0.len(), analysis.1.len());
+    //analysis.0.truncate(cli.top);
+    //analysis.1.truncate(cli.top);
 
     render_view.capture_layer(move |device, queue, config, _scale_factor| {
         let background_image = ScaledImagePass::new(
@@ -150,6 +157,18 @@ pub async fn main() {
     });
     */
 
+    /*
+    let mut analysis = vec![];
+    for _ in 0..500 {
+        let mut row = vec![];
+        for y in 0..=1000 {
+            row.push(y as f32 / 1000.0);
+        }
+        analysis.push(row);
+    }
+    */
+    //dbg!(&analysis);
+
     render_view.capture_layer(move |device, queue, config, _scale_factor| {
         Box::new(AnalysisLayerPass::new(
             Some("Analysis Pass"),
@@ -158,7 +177,22 @@ pub async fn main() {
             queue,
             config,
             LayerMode::AlphaBlend,
-            grad,
+            Gradient::new(
+                Some("BasicGradient"),
+                InnerGradient {
+                    //r: [0.0, 1.0, 1.0, 1.0],
+                    //g: [0.0, 0.0, 0.0, 0.0],
+                    //b: [0.0, 0.0, 0.0, 0.0],
+                    //a: [0.7, 1.0, 1.0, 1.0],
+                    //domain: [0.0, 0.33, 0.66, 1.0],
+                    r: [0.0, 0.0, 0.0, 1.0],
+                    g: [0.0, 0.0, 1.0, 0.0],
+                    b: [0.0, 1.0, 0.0, 0.0],
+                    a: [0.0, 0.8, 1.0, 1.0],
+                    domain: [-150.0, -80.0, -40.0, 0.0],
+                },
+                device,
+            ),
         ))
     });
 
