@@ -2,7 +2,8 @@
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::mpsc,
+    sync::{mpsc, Arc, Mutex},
+    time::{Duration, Instant},
 };
 
 use anyhow::{Error, Result};
@@ -106,8 +107,10 @@ impl AudioFile {
         (left, right)
     }
 
-    pub fn dump_mono(&mut self) -> Vec<f32> {
+    pub fn dump_mono(&mut self, seconds: Option<f32>) -> Vec<f32> {
         let mut result = Vec::new();
+        let sample_limit = seconds.map(|s| (s * self.sample_rate() as f32).round() as u32);
+        let mut count = 0u32;
 
         // Just grab the left channel.
         while let Ok(buf) = self.next_sample(CopyMethod::Planar) {
@@ -115,6 +118,12 @@ impl AudioFile {
                 let mut samples = Vec::from(buf.samples());
                 let len = samples.len();
                 result.append(&mut Vec::from(&mut samples[0..len]));
+                if let Some(limit) = sample_limit {
+                    count += buf.len() as u32;
+                    if count > limit {
+                        break;
+                    }
+                }
             }
         }
 
@@ -148,7 +157,29 @@ pub enum CopyMethod {
 
 pub struct AudioPlayer {
     tx_play_song: mpsc::Sender<PathBuf>,
+    //pub sample_count: Arc<Mutex<u32>>,
+    pub progress: Arc<Mutex<PlaybackPosition>>,
     _stream: cpal::Stream,
+}
+
+#[derive(Debug)]
+pub struct PlaybackPosition {
+    pub instant: Instant,
+    pub music_position: f64,
+}
+
+impl Default for PlaybackPosition {
+    fn default() -> Self {
+        Self {
+            instant: Instant::now(),
+            music_position: 0.0,
+        }
+    }
+}
+
+enum SampleData<S> {
+    Silence,
+    Signal(S),
 }
 
 impl AudioPlayer {
@@ -161,6 +192,8 @@ impl AudioPlayer {
     where
         S: SizedSample + FromSample<f32> + Zero + Send + 'static,
     {
+        //let latency_ms = 0f32;
+
         let sample_rate = config.sample_rate.0 as f32;
         let channels = config.channels as u32;
         let latency_frames = (latency_ms * sample_rate / 1000.).round() as u32;
@@ -172,20 +205,33 @@ impl AudioPlayer {
         }
 
         let (tx_play_song, rx_play_song) = mpsc::channel::<PathBuf>();
+        //let (tx_progress, rx_progress) = mpsc::channel::<u32>();
+        //let sample_count = Arc::new(Mutex::new(0u32));
+        //let sample_count_clone = sample_count.clone();
 
         std::thread::spawn(move || {
             pollster::block_on(async {
                 while let Ok(song) = rx_play_song.recv() {
                     let mut audio = AudioFile::open(song.to_str().unwrap()).await.unwrap();
+
                     loop {
                         match audio.next_sample(CopyMethod::Interleaved) {
                             Ok(Some(signal)) => {
-                                for sample in signal.samples() {
+                                let samples = signal.samples();
+
+                                //*sample_count_clone.lock().unwrap() += samples.len() as u32;
+
+                                //let mut progress = progress_clone.lock().unwrap();
+                                //*progress += samples.len() as u32;
+                                //dbg!(*progress);
+                                //drop(progress);
+
+                                for sample in samples {
                                     loop {
                                         if txrb_audio.push(S::from_sample(*sample)).is_ok() {
                                             break;
                                         }
-                                        log::info!("sleep: {}", latency_ms);
+                                        //log::info!("sleep: {}", latency_ms);
                                         std::thread::sleep(instant::Duration::from_millis(
                                             latency_ms as u64 / 2,
                                         ));
@@ -203,10 +249,42 @@ impl AudioPlayer {
             });
         });
 
+        let mut sample_count = 0u32;
+        let progress = Arc::new(Mutex::new(PlaybackPosition::default()));
+        let progress_clone = progress.clone();
+
         let _stream = device.build_output_stream(
             config,
-            move |data: &mut [S], _: &cpal::OutputCallbackInfo| {
+            move |data: &mut [S], info: &cpal::OutputCallbackInfo| {
                 let mut input_fell_behind = false;
+
+                let timestamp = info.timestamp();
+                let instant = Instant::now()
+                    + timestamp
+                        .playback
+                        .duration_since(&timestamp.callback)
+                        .unwrap_or_else(|| Duration::from_secs(0));
+
+                let new_sample_count = data.len() / channels as usize;
+                let start_time = sample_count as f64 / sample_rate as f64;
+                let end_time = (sample_count as f64 + new_sample_count as f64) / sample_rate as f64;
+
+                if let Ok(mut pos) = progress_clone.lock() {
+                    pos.instant = instant;
+                    pos.music_position = start_time;
+                }
+
+                //let time_playback = info.timestamp().playback;
+                //let time_callback = info.timestamp().callback;
+                //dbg!(time_callback, time_playback);
+
+                //let mut progress = progress_clone.lock().unwrap();
+                //*progress += data.len() as u32;
+                //dbg!(*progress);
+                //drop(progress);
+
+                //*sample_count_clone.lock().unwrap() += new_sample_count as u32;
+                sample_count += new_sample_count as u32;
 
                 for sample in data.chunks_mut(channels as usize) {
                     if let Ok(chunk) = rxrb_audio.read_chunk(2) {
@@ -235,6 +313,8 @@ impl AudioPlayer {
         Ok(AudioPlayer {
             _stream,
             tx_play_song,
+            progress,
+            //sample_count,
         })
     }
 

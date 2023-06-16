@@ -5,27 +5,41 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) level: f32,
+    @location(1) progress: f32,
 };
-
-@vertex
-fn vs_main(in: VertexInput) -> VertexOutput {
-    var out: VertexOutput;
-    out.clip_position = vec4<f32>(in.clip_position.xy, 0.0, 1.0);
-    out.level = in.clip_position.z;
-    return out;
-}
 
 struct Gradient {
     rgba: mat4x4<f32>,
     domain: vec4<f32>,
-}
+};
+
+struct Camera {
+    position: vec2<f32>,
+    scale: vec2<f32>,
+    progress: vec2<f32>,
+};
 
 @group(0) @binding(0)
 var<uniform> gradient: Gradient;
+@group(0) @binding(1)
+var<uniform> camera: Camera;
+
+@vertex
+fn vs_main(in: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    let pos = (in.clip_position.xy + camera.position) * camera.scale;
+    out.clip_position = vec4<f32>(pos, 0.0, 1.0);
+    out.level = in.clip_position.z;
+    out.progress = f32(abs(camera.progress.x - in.clip_position.x)) - 1.0;
+    return out;
+}
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return grad_at(gradient.rgba, gradient.domain, in.level);
+    var color = grad_at(gradient.rgba, gradient.domain, in.level);
+    //let p = smoothstep(0.0, 0.03, in.progress);
+    //color = vec4f(color.rgb * p, color.a);
+    return color;
 }
 
 fn grad_at(grad: mat4x4<f32>, domain: vec4<f32>, at: f32) -> vec4<f32> {

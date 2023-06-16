@@ -1,4 +1,5 @@
 mod audio;
+mod camera;
 mod ease;
 mod event;
 mod fft;
@@ -36,6 +37,9 @@ pub struct Cli {
     /// Song file to analyze
     #[arg(default_value = "media/sine.wav")]
     audio_file: String,
+    /// Seconds to analyze
+    #[arg(short, long)]
+    seconds: Option<f32>,
     /// Truncate analysis buffer
     #[arg(short, long, default_value_t = 8192)]
     top: usize,
@@ -70,6 +74,7 @@ pub async fn main() {
         let _log = tailog::init();
     }
 
+    let cli = Cli::parse();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_maximized(true)
@@ -96,22 +101,9 @@ pub async fn main() {
     }
 
     let mut render_view = RenderView::new(&window).await;
-    let cli = Cli::parse();
-
-    #[cfg(not(target_arch = "wasm32"))]
-    let _audio_player = crate::audio::AudioPlayer::from(&cli);
 
     let background_image = load_image("images/noise3.png").await.unwrap();
     //let background_image = load_image("images/baba.png").await.unwrap();
-    let mut audio = AudioFile::open(&cli.audio_file).await.unwrap();
-    let signal = audio.dump_mono();
-    //let grad = ColorMap::Rgb.grad();
-
-    let analysis = stft(&signal, "hamming", cli.window_size, cli.jump_size);
-
-    //dbg!(analysis.0.len(), analysis.1.len());
-    //analysis.0.truncate(cli.top);
-    //analysis.1.truncate(cli.top);
 
     render_view.capture_layer(move |device, queue, config, _scale_factor| {
         let background_image = ScaledImagePass::new(
@@ -126,6 +118,38 @@ pub async fn main() {
         Box::new(background_image)
     });
 
+    let mut audio = AudioFile::open(&cli.audio_file).await.unwrap();
+    let signal = audio.dump_mono(cli.seconds);
+    let analysis = stft(&signal, "hamming", cli.window_size, cli.jump_size);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let audio_player = crate::audio::AudioPlayer::from(&cli);
+
+    render_view.capture_layer(move |device, queue, config, _scale_factor| {
+        Box::new(AnalysisLayerPass::new(
+            Some("Analysis Pass"),
+            analysis.0,
+            device,
+            config,
+            LayerMode::AlphaBlend,
+            Gradient::new(Some("InitGradient"), ColorMap::default().grad(), device),
+            audio_player.progress.clone(),
+            signal.len() as u32,
+        ))
+    });
+
+    render_view.capture_layer(|device, _queue, config, scale_factor| {
+        Box::new(Gui::new(device, &event_loop, config.format, scale_factor))
+    });
+
+    let mut event_handler = EventHandler::new(window, render_view);
+
+    event_loop.run(move |event, _, control_flow| {
+        event_handler.handle_event(event, control_flow);
+    });
+}
+
+    //let grad = ColorMap::Rgb.grad();
     /*
     let analysis_image = RgbaImage::from_fn(
         analysis.0.len() as u32,
@@ -150,26 +174,3 @@ pub async fn main() {
         Box::new(analysis_pass_scaled)
     });
     */
-
-    render_view.capture_layer(move |device, queue, config, _scale_factor| {
-        Box::new(AnalysisLayerPass::new(
-            Some("Analysis Pass"),
-            analysis.0,
-            device,
-            queue,
-            config,
-            LayerMode::AlphaBlend,
-            Gradient::new(Some("InitGradient"), ColorMap::default().grad(), device),
-        ))
-    });
-
-    render_view.capture_layer(|device, _queue, config, scale_factor| {
-        Box::new(Gui::new(device, &event_loop, config.format, scale_factor))
-    });
-
-    let mut event_handler = EventHandler::new(window, render_view);
-
-    event_loop.run(move |event, _, control_flow| {
-        event_handler.handle_event(event, control_flow);
-    });
-}

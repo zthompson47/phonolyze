@@ -1,4 +1,6 @@
 #![allow(unused_imports)]
+use std::{sync::{mpsc, Arc, Mutex}, time::Instant};
+
 use wgpu::{util::DeviceExt, PrimitiveTopology};
 use winit::{
     dpi::PhysicalSize,
@@ -6,9 +8,10 @@ use winit::{
 };
 
 use crate::{
+    camera::{Camera, InnerCamera},
     gradient::{Gradient, InnerGradient},
     layers::{Layer, LayerMode},
-    render::Renderer,
+    render::Renderer, audio::PlaybackPosition,
 };
 
 use super::LayerState;
@@ -24,25 +27,11 @@ impl Vertex {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                /*
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
-                    shader_location: 2,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                */
-            ],
+            attributes: &[wgpu::VertexAttribute {
+                offset: 0,
+                shader_location: 0,
+                format: wgpu::VertexFormat::Float32x4,
+            }],
         }
     }
 }
@@ -50,15 +39,18 @@ impl Vertex {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct AnalysisLayerPass {
+    layer_mode: LayerMode,
     analysis: Vec<Vec<f32>>,
+    used: bool,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
     pipeline: wgpu::RenderPipeline,
-    layer_mode: LayerMode,
-    used: bool,
-    gradient: Gradient,
     bind_group: wgpu::BindGroup,
+    gradient: Gradient,
+    camera: Camera,
+    audio_progress: Arc<Mutex<PlaybackPosition>>,
+    song_length: u32,
 }
 
 impl AnalysisLayerPass {
@@ -66,10 +58,11 @@ impl AnalysisLayerPass {
         label: Option<&str>,
         analysis: Vec<Vec<f32>>,
         device: &wgpu::Device,
-        _queue: &wgpu::Queue,
         config: &wgpu::SurfaceConfiguration,
         layer_mode: LayerMode,
         gradient: Gradient,
+        audio_progress: Arc<Mutex<PlaybackPosition>>,
+        song_length: u32,
     ) -> Self {
         let _dimensions = PhysicalSize {
             width: analysis.len() as u32,
@@ -79,24 +72,28 @@ impl AnalysisLayerPass {
         let shader = device.create_shader_module(wgpu::include_wgsl!("analysis.wgsl"));
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label,
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
-        });
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: gradient.binding_resource(),
-            }],
-            label,
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label,
@@ -132,6 +129,29 @@ impl AnalysisLayerPass {
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
         });
+        let camera = Camera::new(
+            Some("Camera"),
+            InnerCamera {
+                position: [0.0, 0.0],
+                scale: [1.0, 1.0],
+                progress: [0.0, 0.0],
+            },
+            device,
+        );
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: gradient.binding_resource(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: camera.binding_resource(),
+                },
+            ],
+            label,
+        });
 
         AnalysisLayerPass {
             analysis,
@@ -143,6 +163,9 @@ impl AnalysisLayerPass {
             used: false,
             gradient,
             bind_group,
+            camera,
+            audio_progress,
+            song_length,
         }
     }
 }
@@ -227,12 +250,51 @@ impl Layer for AnalysisLayerPass {
 
     fn handle_event(
         &mut self,
-        _event: &WindowEvent,
-        _queue: &wgpu::Queue,
+        event: &WindowEvent,
+        queue: &wgpu::Queue,
     ) -> egui_winit::EventResponse {
+        if let WindowEvent::KeyboardInput {
+            input:
+                winit::event::KeyboardInput {
+                    virtual_keycode,
+                    state: winit::event::ElementState::Pressed,
+                    ..
+                },
+            ..
+        } = event
+        {
+            match virtual_keycode {
+                Some(VirtualKeyCode::A) => {
+                    self.camera.move_horizontal(-0.03, queue);
+                }
+                Some(VirtualKeyCode::S) => {
+                    self.camera.move_horizontal(0.03, queue);
+                }
+                Some(VirtualKeyCode::Z) => {
+                    self.camera.scale_horizontal(-0.03, queue);
+                }
+                Some(VirtualKeyCode::X) => {
+                    self.camera.scale_horizontal(0.03, queue);
+                }
+                Some(VirtualKeyCode::D) => {
+                    self.camera.move_vertical(-0.03, queue);
+                }
+                Some(VirtualKeyCode::F) => {
+                    self.camera.move_vertical(0.03, queue);
+                }
+                Some(VirtualKeyCode::C) => {
+                    self.camera.scale_vertical(-0.03, queue);
+                }
+                Some(VirtualKeyCode::V) => {
+                    self.camera.scale_vertical(0.03, queue);
+                }
+                _ => {}
+            }
+        }
+
         egui_winit::EventResponse {
             consumed: false,
-            repaint: false,
+            repaint: true,
         }
     }
 
@@ -246,6 +308,30 @@ impl Layer for AnalysisLayerPass {
         if let Some(new_color_map) = state.update_color_map() {
             self.gradient.update(new_color_map.grad(), queue);
         }
+
+        if let Ok(progress) = self.audio_progress.lock() {
+            let now = Instant::now();
+            let diff = if now > progress.instant {
+                (now - progress.instant).as_secs_f64()
+            } else {
+                -(progress.instant - now).as_secs_f64()
+            };
+            let pos = progress.music_position + diff;
+
+            dbg!(pos);
+        }
+
+        //let audio_progress = self.audio_progress.lock().unwrap();
+        //let progress = *audio_progress as f32 / self.analysis.len() as f32 / 44100.;
+        //let pos = *audio_progress as f32 / self.song_length as f32;
+        //if *audio_progress < 10000 {
+        //dbg!(*audio_progress);
+        //dbg!(progress);
+        //}
+
+
+
+        //self.camera.update_progress(progress, queue);
     }
 
     fn render(&mut self, renderer: &mut Renderer) {
