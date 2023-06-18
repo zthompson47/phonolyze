@@ -79,8 +79,8 @@ impl EventHandler {
                 let delta = now - self.last_updated;
 
                 self.last_updated = now;
-                self.render_view.update(delta);
-                self.window.request_redraw();
+                self.render_view.update(delta, &self.window);
+                //self.window.request_redraw();
             }
 
             Event::RedrawRequested(window_id) if window_id == self.window.id() => {

@@ -1,17 +1,20 @@
 #![allow(unused_imports)]
-use std::{sync::{mpsc, Arc, Mutex}, time::Instant};
+use std::sync::{mpsc, Arc, Mutex};
 
+use instant::{Duration, Instant};
 use wgpu::{util::DeviceExt, PrimitiveTopology};
 use winit::{
     dpi::PhysicalSize,
     event::{VirtualKeyCode, WindowEvent},
+    window::Window,
 };
 
 use crate::{
+    audio::{AudioPlayer, PlaybackPosition},
     camera::{Camera, InnerCamera},
     gradient::{Gradient, InnerGradient},
     layers::{Layer, LayerMode},
-    render::Renderer, audio::PlaybackPosition,
+    render::Renderer,
 };
 
 use super::LayerState;
@@ -49,11 +52,14 @@ pub struct AnalysisLayerPass {
     bind_group: wgpu::BindGroup,
     gradient: Gradient,
     camera: Camera,
-    audio_progress: Arc<Mutex<PlaybackPosition>>,
-    song_length: u32,
+    #[cfg(not(target_arch = "wasm32"))]
+    audio: AudioPlayer,
+    song_length: f32,
+    last_update: Instant,
 }
 
 impl AnalysisLayerPass {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         label: Option<&str>,
         analysis: Vec<Vec<f32>>,
@@ -61,9 +67,10 @@ impl AnalysisLayerPass {
         config: &wgpu::SurfaceConfiguration,
         layer_mode: LayerMode,
         gradient: Gradient,
-        audio_progress: Arc<Mutex<PlaybackPosition>>,
-        song_length: u32,
+        #[cfg(not(target_arch = "wasm32"))] audio: AudioPlayer,
+        song_length: f32,
     ) -> Self {
+        dbg!(song_length);
         let _dimensions = PhysicalSize {
             width: analysis.len() as u32,
             height: analysis[0].len() as u32,
@@ -105,12 +112,12 @@ impl AnalysisLayerPass {
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
-                entry_point: "vs_main",
+                entry_point: "vertex_main",
                 buffers: &[Vertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
-                entry_point: "fs_main",
+                entry_point: "fragment_main",
                 targets: &[Some(wgpu::ColorTargetState {
                     format: config.format,
                     blend: Some(match layer_mode {
@@ -134,7 +141,10 @@ impl AnalysisLayerPass {
             InnerCamera {
                 position: [0.0, 0.0],
                 scale: [1.0, 1.0],
-                progress: [0.0, 0.0],
+                #[cfg(not(target_arch = "wasm32"))]
+                progress: [0.0, 0.0, 1.0, 0.0],
+                #[cfg(target_arch = "wasm32")]
+                progress: [0.0, 0.0, 0.0, 0.0],
             },
             device,
         );
@@ -164,8 +174,10 @@ impl AnalysisLayerPass {
             gradient,
             bind_group,
             camera,
-            audio_progress,
+            #[cfg(not(target_arch = "wasm32"))]
+            audio,
             song_length,
+            last_update: Instant::now(),
         }
     }
 }
@@ -304,34 +316,31 @@ impl Layer for AnalysisLayerPass {
         state: &mut LayerState,
         _device: &wgpu::Device,
         queue: &wgpu::Queue,
+        #[cfg(target_arch = "wasm32")] _window: &Window,
+        #[cfg(not(target_arch = "wasm32"))] window: &Window,
     ) {
         if let Some(new_color_map) = state.update_color_map() {
             self.gradient.update(new_color_map.grad(), queue);
         }
 
-        if let Ok(progress) = self.audio_progress.lock() {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Ok(progress) = self.audio.progress.lock() {
             let now = Instant::now();
             let diff = if now > progress.instant {
                 (now - progress.instant).as_secs_f64()
             } else {
                 -(progress.instant - now).as_secs_f64()
             };
+
             let pos = progress.music_position + diff;
 
-            dbg!(pos);
+            if Instant::now().duration_since(self.last_update) > Duration::from_millis(200) {
+                self.camera
+                    .update_progress([pos as f32, self.song_length], queue);
+                window.request_redraw();
+                self.last_update = Instant::now();
+            }
         }
-
-        //let audio_progress = self.audio_progress.lock().unwrap();
-        //let progress = *audio_progress as f32 / self.analysis.len() as f32 / 44100.;
-        //let pos = *audio_progress as f32 / self.song_length as f32;
-        //if *audio_progress < 10000 {
-        //dbg!(*audio_progress);
-        //dbg!(progress);
-        //}
-
-
-
-        //self.camera.update_progress(progress, queue);
     }
 
     fn render(&mut self, renderer: &mut Renderer) {

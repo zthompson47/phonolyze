@@ -1,5 +1,6 @@
 #![allow(unused)]
 use std::{
+    cell::Cell,
     collections::HashMap,
     path::{Path, PathBuf},
     sync::{mpsc, Arc, Mutex},
@@ -155,11 +156,23 @@ pub enum CopyMethod {
     Planar,
 }
 
+//#[derive(Debug)]
 pub struct AudioPlayer {
     tx_play_song: mpsc::Sender<PathBuf>,
+    //tx_stop_song: mpsc::SyncSender<()>,
     //pub sample_count: Arc<Mutex<u32>>,
     pub progress: Arc<Mutex<PlaybackPosition>>,
     _stream: cpal::Stream,
+}
+
+impl std::fmt::Debug for AudioPlayer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AudioPlayer")
+            .field("tx_play_song", &self.tx_play_song)
+            .field("progress", &self.progress)
+            .field("_stream", &"n/a")
+            .finish()
+    }
 }
 
 #[derive(Debug)]
@@ -177,9 +190,11 @@ impl Default for PlaybackPosition {
     }
 }
 
-enum SampleData<S> {
+enum Sample<S> {
     Silence,
     Signal(S),
+    //Stop,
+    SetChannels(usize),
 }
 
 impl AudioPlayer {
@@ -192,46 +207,40 @@ impl AudioPlayer {
     where
         S: SizedSample + FromSample<f32> + Zero + Send + 'static,
     {
-        //let latency_ms = 0f32;
-
         let sample_rate = config.sample_rate.0 as f32;
-        let channels = config.channels as u32;
+        let channels = config.channels;
         let latency_frames = (latency_ms * sample_rate / 1000.).round() as u32;
-        let latency_samples = (latency_frames * channels) as usize;
-        let (mut txrb_audio, mut rxrb_audio) = rtrb::RingBuffer::<S>::new(latency_samples * 2);
-
-        for _ in 0..latency_samples {
-            txrb_audio.push(S::zero());
-        }
-
+        let latency_samples = (latency_frames * channels as u32) as usize;
+        let (mut txrb_audio, mut rxrb_audio) =
+            rtrb::RingBuffer::<Sample<S>>::new(latency_samples * 2);
         let (tx_play_song, rx_play_song) = mpsc::channel::<PathBuf>();
-        //let (tx_progress, rx_progress) = mpsc::channel::<u32>();
-        //let sample_count = Arc::new(Mutex::new(0u32));
-        //let sample_count_clone = sample_count.clone();
+        let (tx_stop_song, rx_stop_song) = mpsc::sync_channel::<()>(1);
+        dbg!(sample_rate, channels, latency_frames, latency_samples);
+
+        let mut audio_channels: Cell<usize> = Cell::new(channels as usize);
+        for _ in 0..latency_samples {
+            txrb_audio.push(Sample::Silence);
+        }
 
         std::thread::spawn(move || {
             pollster::block_on(async {
                 while let Ok(song) = rx_play_song.recv() {
                     let mut audio = AudioFile::open(song.to_str().unwrap()).await.unwrap();
 
+                    txrb_audio.push(Sample::SetChannels(audio.channels()));
                     loop {
                         match audio.next_sample(CopyMethod::Interleaved) {
                             Ok(Some(signal)) => {
                                 let samples = signal.samples();
 
-                                //*sample_count_clone.lock().unwrap() += samples.len() as u32;
-
-                                //let mut progress = progress_clone.lock().unwrap();
-                                //*progress += samples.len() as u32;
-                                //dbg!(*progress);
-                                //drop(progress);
-
                                 for sample in samples {
                                     loop {
-                                        if txrb_audio.push(S::from_sample(*sample)).is_ok() {
+                                        if txrb_audio
+                                            .push(Sample::Signal(S::from_sample(*sample)))
+                                            .is_ok()
+                                        {
                                             break;
                                         }
-                                        //log::info!("sleep: {}", latency_ms);
                                         std::thread::sleep(instant::Duration::from_millis(
                                             latency_ms as u64 / 2,
                                         ));
@@ -257,7 +266,6 @@ impl AudioPlayer {
             config,
             move |data: &mut [S], info: &cpal::OutputCallbackInfo| {
                 let mut input_fell_behind = false;
-
                 let timestamp = info.timestamp();
                 let instant = Instant::now()
                     + timestamp
@@ -265,36 +273,65 @@ impl AudioPlayer {
                         .duration_since(&timestamp.callback)
                         .unwrap_or_else(|| Duration::from_secs(0));
 
-                let new_sample_count = data.len() / channels as usize;
-                let start_time = sample_count as f64 / sample_rate as f64;
-                let end_time = (sample_count as f64 + new_sample_count as f64) / sample_rate as f64;
+                //let new_sample_count = data.len() / channels as usize;
+                //let samples_per_channel = sample_count as f64 / channels as f64;
+                let new_sample_count = data.len() / audio_channels.get();
+                let samples_per_channel = sample_count as f64 / audio_channels.get() as f64;
+                let start_time = samples_per_channel / sample_rate as f64;
+                let end_time = (samples_per_channel + new_sample_count as f64) / sample_rate as f64;
 
                 if let Ok(mut pos) = progress_clone.lock() {
                     pos.instant = instant;
                     pos.music_position = start_time;
                 }
 
-                //let time_playback = info.timestamp().playback;
-                //let time_callback = info.timestamp().callback;
-                //dbg!(time_callback, time_playback);
+                let mut next_sample = |s: &Sample<S>| -> Option<S> {
+                    match s {
+                        Sample::Silence => Some(S::zero()),
+                        Sample::Signal(s) => {
+                            sample_count += 1;
+                            Some(*s)
+                        }
+                        Sample::SetChannels(num) => {
+                            audio_channels.set(*num);
+                            None
+                        }
+                    }
+                };
 
-                //let mut progress = progress_clone.lock().unwrap();
-                //*progress += data.len() as u32;
-                //dbg!(*progress);
-                //drop(progress);
+                fn silence<S: Zero>(samples: &mut [S]) {
+                    for sample in samples.iter_mut() {
+                        *sample = S::zero();
+                    }
+                }
 
-                //*sample_count_clone.lock().unwrap() += new_sample_count as u32;
-                sample_count += new_sample_count as u32;
+                for samples in data.chunks_mut(channels as usize) {
+                    if let Ok(mut audio_sample) = rxrb_audio.pop() {
+                        let mut next = next_sample(&audio_sample);
+                        while next.is_none() {
+                            if let Ok(mut audio_sample) = rxrb_audio.pop() {
+                                next = next_sample(&audio_sample);
+                            } else {
+                                input_fell_behind = true;
+                                silence(samples);
+                                continue;
+                            }
+                        }
 
-                for sample in data.chunks_mut(channels as usize) {
-                    if let Ok(chunk) = rxrb_audio.read_chunk(2) {
-                        let mut chunk = chunk.into_iter();
-                        sample[0] = chunk.next().unwrap();
-                        sample[1] = chunk.next().unwrap();
+                        let next = next.unwrap();
+
+                        for (i, sample) in samples.iter_mut().enumerate() {
+                            if i == 0 || (audio_channels.get() == 1 && i == 1) {
+                                *sample = next;
+                            } else if audio_channels.get() > i {
+                                *sample = next_sample(&rxrb_audio.pop().unwrap()).unwrap();
+                            } else {
+                                *sample = S::zero();
+                            }
+                        }
                     } else {
                         input_fell_behind = true;
-                        sample[0] = S::zero();
-                        sample[1] = S::zero();
+                        silence(samples);
                     }
                 }
 
@@ -329,7 +366,14 @@ impl From<&Cli> for AudioPlayer {
             .default_output_device()
             .ok_or(Error::msg("No audio device found"))
             .unwrap();
+
+        //dbg!(cpal::default_host().default_output_device());
+        //for c in device.supported_output_configs().unwrap() {
+        //    dbg!(c);
+        //}
+
         let config = device.default_output_config().unwrap();
+        dbg!(&config);
         let audio_player = {
             match config.sample_format() {
                 cpal::SampleFormat::I8 => pollster::block_on(AudioPlayer::new::<i8>(

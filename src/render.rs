@@ -96,11 +96,11 @@ impl RenderView {
     }
     */
 
-    pub fn update(&mut self, delta: instant::Duration) {
+    pub fn update(&mut self, delta: instant::Duration, window: &Window) {
         let _step = delta.as_secs_f32();
 
         self.layers.iter_mut().for_each(|layer| {
-            layer.update(delta, &mut self.layer_state, &self.device, &self.queue);
+            layer.update(delta, &mut self.layer_state, &self.device, &self.queue, window);
         });
 
         /*

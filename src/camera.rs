@@ -3,9 +3,12 @@ use wgpu::util::DeviceExt;
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct InnerCamera {
+    /// [x, y]
     pub position: [f32; 2],
+    /// [horiztonal, vertical]
     pub scale: [f32; 2],
-    pub progress: [f32; 2],
+    /// [secs_in, total_secs, enable, _]
+    pub progress: [f32; 4],
 }
 
 #[derive(Debug)]
@@ -25,11 +28,6 @@ impl Camera {
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             }),
         }
-    }
-
-    pub fn update(&mut self, inner: InnerCamera, queue: &wgpu::Queue) {
-        self.inner = inner;
-        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
 
     pub fn move_horizontal(&mut self, amount: f32, queue: &wgpu::Queue) {
@@ -52,8 +50,9 @@ impl Camera {
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
 
-    pub fn update_progress(&mut self, progress: f32, queue: &wgpu::Queue) {
-        self.inner.progress[0] = progress;
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn update_progress(&mut self, progress: [f32; 2], queue: &wgpu::Queue) {
+        self.inner.progress = [progress[0], progress[1], 1.0, 0.0];
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
 

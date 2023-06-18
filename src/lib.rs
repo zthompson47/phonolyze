@@ -125,7 +125,7 @@ pub async fn main() {
     #[cfg(not(target_arch = "wasm32"))]
     let audio_player = crate::audio::AudioPlayer::from(&cli);
 
-    render_view.capture_layer(move |device, queue, config, _scale_factor| {
+    render_view.capture_layer(move |device, _queue, config, _scale_factor| {
         Box::new(AnalysisLayerPass::new(
             Some("Analysis Pass"),
             analysis.0,
@@ -133,8 +133,10 @@ pub async fn main() {
             config,
             LayerMode::AlphaBlend,
             Gradient::new(Some("InitGradient"), ColorMap::default().grad(), device),
-            audio_player.progress.clone(),
-            signal.len() as u32,
+            //audio_player.progress,
+            #[cfg(not(target_arch = "wasm32"))]
+            audio_player,
+            signal.len() as f32 / audio.sample_rate() as f32, // TODO divie by channel count
         ))
     });
 
@@ -149,28 +151,28 @@ pub async fn main() {
     });
 }
 
-    //let grad = ColorMap::Rgb.grad();
-    /*
-    let analysis_image = RgbaImage::from_fn(
-        analysis.0.len() as u32,
-        (analysis.0[0].len() as f32 * 0.6) as u32,
-        |x, y| {
-            let val = analysis.0[x as usize][y as usize] as f64;
-            //val = remap(val, -140., 0., 0., 1.);
-            Rgba(grad.at(val).to_rgba8())
-        },
+//let grad = ColorMap::Rgb.grad();
+/*
+let analysis_image = RgbaImage::from_fn(
+    analysis.0.len() as u32,
+    (analysis.0[0].len() as f32 * 0.6) as u32,
+    |x, y| {
+        let val = analysis.0[x as usize][y as usize] as f64;
+        //val = remap(val, -140., 0., 0., 1.);
+        Rgba(grad.at(val).to_rgba8())
+    },
+);
+
+render_view.capture_layer(move |device, queue, config, _scale_factor| {
+    let analysis_pass_scaled = ScaledImagePass::new(
+        Some("Analysis Image Scaled"),
+        image::DynamicImage::ImageRgba8(analysis_image),
+        device,
+        queue,
+        config,
+        LayerMode::AlphaBlend,
     );
 
-    render_view.capture_layer(move |device, queue, config, _scale_factor| {
-        let analysis_pass_scaled = ScaledImagePass::new(
-            Some("Analysis Image Scaled"),
-            image::DynamicImage::ImageRgba8(analysis_image),
-            device,
-            queue,
-            config,
-            LayerMode::AlphaBlend,
-        );
-
-        Box::new(analysis_pass_scaled)
-    });
-    */
+    Box::new(analysis_pass_scaled)
+});
+*/

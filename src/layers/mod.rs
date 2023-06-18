@@ -2,7 +2,7 @@ pub mod analysis;
 pub mod gui;
 pub mod scaled_image;
 
-use winit::{dpi::PhysicalSize, event::WindowEvent};
+use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
 
 use crate::{layers::gui::ColorMap, render::Renderer};
 
@@ -25,6 +25,7 @@ pub trait Layer {
         _state: &mut LayerState,
         _device: &wgpu::Device,
         _queue: &wgpu::Queue,
+        _window: &Window,
     ) {
     }
 }
