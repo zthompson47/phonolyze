@@ -10,6 +10,7 @@ pub struct Renderer<'a> {
     pub queue: &'a wgpu::Queue,
     pub config: &'a wgpu::SurfaceConfiguration,
     pub state: &'a mut LayerState,
+    pub scale_factor: f32,
 }
 
 pub struct RenderView {
@@ -65,8 +66,6 @@ impl RenderView {
             alpha_mode: capabilities.alpha_modes[0],
             view_formats: vec![capabilities.formats[0]],
         };
-
-        //dbg!(config.usage, config.format, size.width);
 
         surface.configure(&device, &config);
 
@@ -140,6 +139,7 @@ impl RenderView {
             queue: &self.queue,
             config: &self.config,
             state: &mut self.layer_state,
+            scale_factor: self.scale_factor,
         };
 
         self.layers.iter_mut().for_each(|layer| {

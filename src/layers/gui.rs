@@ -124,7 +124,7 @@ impl Layer for Gui {
 
         let screen_descriptor = egui_wgpu::renderer::ScreenDescriptor {
             size_in_pixels: [renderer.config.width, renderer.config.height],
-            pixels_per_point: 2.0, //self.scale_factor,
+            pixels_per_point: renderer.scale_factor,
         };
 
         self.renderer.update_buffers(

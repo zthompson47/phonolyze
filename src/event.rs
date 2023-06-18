@@ -53,6 +53,17 @@ impl EventHandler {
 
         match event {
             Event::WindowEvent {
+                event:
+                    WindowEvent::ScaleFactorChanged {
+                        scale_factor,
+                        new_inner_size: _,
+                    },
+                window_id,
+            } if window_id == self.window.id() => {
+                self.render_view.scale_factor = scale_factor as f32
+            }
+
+            Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 window_id,
             } if window_id == self.window.id() => *control_flow = ControlFlow::Exit,
