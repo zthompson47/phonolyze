@@ -33,6 +33,7 @@ egui-wgpu = { git = "https://github.com/emilk/egui" }
 egui-winit = { git = "https://github.com/emilk/egui", default-features = false }
 strum = "0.24.1"
 strum_macros = "0.24.3"
+colorgrad = "0.6.2"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.7"
