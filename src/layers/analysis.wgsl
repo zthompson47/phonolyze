@@ -17,6 +17,7 @@ struct VertexOutput {
 };
 
 struct Gradient {
+    grad: array<vec4<f32>, 256>,
     rgba: mat4x4<f32>,
     domain: vec4<f32>,
 };
@@ -51,11 +52,20 @@ fn vertex_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fragment_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    var color = grad_at(gradient.rgba, gradient.domain, in.level);
-    if in.show_progress > 0.5 {
-        let p = smoothstep(0.0, 0.02, in.progress);
-        color = vec4f(color.rgb * p, color.a);
-    }
+    let idx = u32(clamp(in.level * 255.0, 0.0, 255.0));
+    var color = gradient.grad[idx]; // + vec4<f32>(0.0, 0.0, 0.0, 1.0);
+
+    //var color = gradient.grad[47];
+    //var color = vec4<f32>(1.0, 0.0, 0.0, 1.0);
+
+    //var color = grad_at(gradient.rgba, gradient.domain, in.level);
+    //var color = vec4<f32>(in.level, in.level, in.level, 1.0);
+
+    //if in.show_progress > 0.5 {
+    //    let p = smoothstep(0.0, 0.02, in.progress);
+    //    color = vec4f(color.rgb * p, color.a);
+    //}
+
     return color;
 }
 

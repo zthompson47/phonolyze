@@ -205,12 +205,11 @@ fn update_analysis(
 
     analysis.iter().take(w).enumerate().for_each(|(i, x)| {
         x.iter().take(h).enumerate().for_each(|(j, y)| {
-            let level = *y;
+            //let level = *y;
             //let color = gradient.at(level as f64).to_array().map(|x| x as f32);
             //dbg!(*y);
 
-            //let mut level = (*y + 150.0).clamp(0.0, 150.0);
-            //level /= 150.0;
+            let level = (*y + 150.0).clamp(0.0, 150.0) / 150.0;
 
             //dbg!(&level);
 
