@@ -1,17 +1,16 @@
 struct Vertex {
     clip_position: vec2<f32>,
     level: f32,
-    unused: f32,
+    pad: f32,
 };
 
 struct VertexInput {
     @location(0) clip_position: vec4<f32>,
-    //@location(0) clip_position: Vertex,
 };
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) level: f32,
+    @location(0) color: vec4<f32>,
     @location(1) progress: f32,
     @location(2) show_progress: f32,
 };
@@ -36,27 +35,33 @@ var<uniform> camera: Camera;
 fn vertex_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
 
+    // Clip position
     let pos = (in.clip_position.xy + camera.position) * camera.scale;
     out.clip_position = vec4<f32>(pos, 0.0, 1.0);
 
-    out.level = in.clip_position.z;
+    // Gradient color
+    out.color = grad_at(gradient.rgba, gradient.domain, in.clip_position.z);
 
-    let normed_progress = camera.progress.x / camera.progress.y;
-    let normed_clip = ((in.clip_position.x + 1.0) / 2.0); // * camera.progress.y;
-    out.progress = f32(abs(normed_progress - normed_clip));
-    out.show_progress = camera.progress.z;
+    // Progress bar
+    //let normed_progress = camera.progress.x / camera.progress.y;
+    //let normed_clip = ((in.clip_position.x + 1.0) / 2.0); // * camera.progress.y;
+    //out.progress = f32(abs(normed_progress - normed_clip));
+    //out.show_progress = camera.progress.z;
 
     return out;
 }
 
 @fragment
 fn fragment_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    var color = grad_at(gradient.rgba, gradient.domain, in.level);
-    if in.show_progress > 0.5 {
-        let p = smoothstep(0.0, 0.02, in.progress);
-        color = vec4f(color.rgb * p, color.a);
-    }
-    return color;
+    //var color = in.color;
+
+    // Progress bar
+    //if in.show_progress > 0.5 {
+    //    let p = smoothstep(0.0, 0.01, in.progress);
+    //    color = vec4f(color.rgb * p, color.a);
+    //}
+
+    return in.color;
 }
 
 fn grad_at(grad: mat4x4<f32>, domain: vec4<f32>, at: f32) -> vec4<f32> {

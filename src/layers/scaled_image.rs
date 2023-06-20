@@ -12,6 +12,8 @@ use crate::{
     vertex::{Vertex, SQUARE_VERTICES},
 };
 
+use super::LayerState;
+
 #[derive(Debug)]
 pub struct ScaledImagePass {
     pub image: DynamicImage,
@@ -264,7 +266,7 @@ impl Layer for ScaledImagePass {
         }
     }
 
-    fn render(&mut self, renderer: &mut Renderer) {
+    fn render(&mut self, renderer: &mut Renderer, _state: &mut LayerState) {
         let mut render_pass = renderer
             .encoder
             .begin_render_pass(&wgpu::RenderPassDescriptor {

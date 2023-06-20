@@ -9,7 +9,7 @@ pub struct Renderer<'a> {
     pub device: &'a wgpu::Device,
     pub queue: &'a wgpu::Queue,
     pub config: &'a wgpu::SurfaceConfiguration,
-    pub state: &'a mut LayerState,
+    //pub state: &'a mut LayerState,
     pub scale_factor: f32,
 }
 
@@ -138,19 +138,19 @@ impl RenderView {
             device: &self.device,
             queue: &self.queue,
             config: &self.config,
-            state: &mut self.layer_state,
+            //state: &mut self.layer_state,
             scale_factor: self.scale_factor,
         };
 
         self.layers.iter_mut().for_each(|layer| {
-            layer.render(&mut renderer);
+            layer.render(&mut renderer, &mut self.layer_state);
         });
 
         self.queue.submit(std::iter::once(encoder.finish()));
         frame.present();
     }
 
-    pub fn capture_layer<F>(&mut self, f: F)
+    /*pub fn capture_layer<F>(&mut self, f: F)
     where
         F: FnOnce(&wgpu::Device, &wgpu::Queue, &wgpu::SurfaceConfiguration, f32) -> Box<dyn Layer>,
     {
@@ -160,5 +160,5 @@ impl RenderView {
             &self.config,
             self.scale_factor,
         ));
-    }
+    }*/
 }

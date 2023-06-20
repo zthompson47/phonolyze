@@ -43,8 +43,6 @@ impl Vertex {
 #[derive(Debug)]
 pub struct AnalysisLayerPass {
     layer_mode: LayerMode,
-    analysis: Vec<Vec<f32>>,
-    used: bool,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
@@ -52,9 +50,6 @@ pub struct AnalysisLayerPass {
     bind_group: wgpu::BindGroup,
     gradient: Gradient,
     camera: Camera,
-    #[cfg(not(target_arch = "wasm32"))]
-    audio: AudioPlayer,
-    song_length: f32,
     last_update: Instant,
 }
 
@@ -62,27 +57,21 @@ impl AnalysisLayerPass {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         label: Option<&str>,
-        analysis: Vec<Vec<f32>>,
+        analysis: &Vec<Vec<f32>>,
         device: &wgpu::Device,
         config: &wgpu::SurfaceConfiguration,
         layer_mode: LayerMode,
         gradient: Gradient,
-        #[cfg(not(target_arch = "wasm32"))] audio: AudioPlayer,
-        song_length: f32,
     ) -> Self {
-        dbg!(song_length);
-        let _dimensions = PhysicalSize {
-            width: analysis.len() as u32,
-            height: analysis[0].len() as u32,
-        };
-        let (vertex_buffer, index_buffer, num_indices) = update_analysis(&analysis, device);
+        let (vertex_buffer, index_buffer, num_indices) = tessellate(analysis, device);
         let shader = device.create_shader_module(wgpu::include_wgsl!("analysis.wgsl"));
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label,
             entries: &[
+                // Gradient
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    visibility: wgpu::ShaderStages::VERTEX,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -90,6 +79,7 @@ impl AnalysisLayerPass {
                     },
                     count: None,
                 },
+                // Camera
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::VERTEX,
@@ -164,82 +154,61 @@ impl AnalysisLayerPass {
         });
 
         AnalysisLayerPass {
-            analysis,
             vertex_buffer,
             index_buffer,
             num_indices,
             pipeline,
             layer_mode,
-            used: false,
             gradient,
             bind_group,
             camera,
-            #[cfg(not(target_arch = "wasm32"))]
-            audio,
-            song_length,
             last_update: Instant::now(),
         }
     }
 }
 
-fn update_analysis(
+fn tessellate(
     analysis: &Vec<Vec<f32>>,
     device: &wgpu::Device,
 ) -> (wgpu::Buffer, wgpu::Buffer, u32) {
     let mut vertices = Vec::new();
     let mut indices: Vec<u32> = vec![];
-    //let w = 1276;
-    //let h = 772;
-    //let w = dimensions.width as usize;
-    //let w = 1276.clamp(0, dimensions.width as usize); //180;
-    //let h = dimensions.height as usize;
-    //let h = 3000.clamp(0, dimensions.height as usize); //400;
+    let width = analysis.len();
+    let height = analysis[0].len();
 
-    let dimensions = PhysicalSize {
-        width: analysis.len() as u32,
-        height: analysis[0].len() as u32,
-    };
+    analysis
+        .iter()
+        .take(width)
+        .enumerate()
+        .for_each(|(i, col)| {
+            col.iter().take(height).enumerate().for_each(|(j, level)| {
+                let vertex = Vertex {
+                    position: [
+                        (i as f32 / (width as f32 - 1.0)) * 2.0 - 1.0,
+                        (j as f32 / (height as f32 - 1.0)) * 2.0 - 1.0,
+                        *level,
+                        0.0,
+                    ],
+                };
 
-    let w = dimensions.width as usize;
-    let h = dimensions.height as usize;
+                vertices.push(vertex);
 
-    analysis.iter().take(w).enumerate().for_each(|(i, x)| {
-        x.iter().take(h).enumerate().for_each(|(j, y)| {
-            let level = *y;
-            //let color = gradient.at(level as f64).to_array().map(|x| x as f32);
-            //dbg!(*y);
+                if i < width - 1 && j < height - 1 {
+                    let bottom_left = (height * i + j) as u32;
+                    let bottom_right = bottom_left + height as u32;
+                    let top_left = bottom_left + 1;
+                    let top_right = bottom_right + 1;
 
-            //let mut level = (*y + 150.0).clamp(0.0, 150.0);
-            //level /= 150.0;
-
-            //dbg!(&level);
-
-            let vertex = Vertex {
-                position: [
-                    (i as f32 / (w as f32 - 1.0)) * 2.0 - 1.0,
-                    (j as f32 / (h as f32 - 1.0)) * 2.0 - 1.0,
-                    //*y,
-                    level,
-                    0.0,
-                ],
-                //level: *y,
-                //level,
-                //color,
-                //..Default::default()
-            };
-            //dbg!(&vertex);
-            vertices.push(vertex);
-
-            if i < w - 1 && j < h - 1 {
-                let bl = (h * i + j) as u32;
-                let br = bl + h as u32;
-                let tl = bl + 1;
-                let tr = br + 1;
-
-                indices.extend_from_slice(&[[tl, bl, tr], [tr, bl, br]].concat());
-            }
-        })
-    });
+                    indices.extend_from_slice(
+                        &[
+                            [top_left, bottom_left, top_right],
+                            [top_right, bottom_left, bottom_right],
+                        ]
+                        .concat(),
+                    );
+                }
+            })
+        });
 
     let label = Some("Update Analysis");
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -316,34 +285,14 @@ impl Layer for AnalysisLayerPass {
         state: &mut LayerState,
         _device: &wgpu::Device,
         queue: &wgpu::Queue,
-        #[cfg(target_arch = "wasm32")] _window: &Window,
-        #[cfg(not(target_arch = "wasm32"))] window: &Window,
+        _window: &Window,
     ) {
         if let Some(new_color_map) = state.update_color_map() {
             self.gradient.update(new_color_map.grad(), queue);
         }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        if let Ok(progress) = self.audio.progress.lock() {
-            let now = Instant::now();
-            let diff = if now > progress.instant {
-                (now - progress.instant).as_secs_f64()
-            } else {
-                -(progress.instant - now).as_secs_f64()
-            };
-
-            let pos = progress.music_position + diff;
-
-            if Instant::now().duration_since(self.last_update) > Duration::from_millis(200) {
-                self.camera
-                    .update_progress([pos as f32, self.song_length], queue);
-                window.request_redraw();
-                self.last_update = Instant::now();
-            }
-        }
     }
 
-    fn render(&mut self, renderer: &mut Renderer) {
+    fn render(&mut self, renderer: &mut Renderer, _state: &mut LayerState) {
         let mut render_pass = renderer
             .encoder
             .begin_render_pass(&wgpu::RenderPassDescriptor {

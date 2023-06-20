@@ -1,5 +1,6 @@
 pub mod analysis;
 pub mod gui;
+pub mod meter;
 pub mod scaled_image;
 
 use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
@@ -17,7 +18,7 @@ pub trait Layer {
             repaint: false,
         }
     }
-    fn render(&mut self, _renderer: &mut Renderer) {}
+    fn render(&mut self, _renderer: &mut Renderer, _state: &mut LayerState) {}
     fn resize(&mut self, _new_size: PhysicalSize<u32>, _queue: &wgpu::Queue) {}
     fn update(
         &mut self,

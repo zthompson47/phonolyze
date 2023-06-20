@@ -51,8 +51,8 @@ impl Camera {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn update_progress(&mut self, progress: [f32; 2], queue: &wgpu::Queue) {
-        self.inner.progress = [progress[0], progress[1], 1.0, 0.0];
+    pub fn _update_progress(&mut self, progress: [f32; 3], queue: &wgpu::Queue) {
+        self.inner.progress = [progress[0], progress[1], 1.0, progress[2]];
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
 

@@ -11,6 +11,7 @@ mod scale;
 mod vertex;
 
 use clap::Parser;
+use layers::meter::MeterPass;
 use winit::{event_loop::EventLoop, window::WindowBuilder};
 
 use crate::{
@@ -105,18 +106,14 @@ pub async fn main() {
     let background_image = load_image("images/noise3.png").await.unwrap();
     //let background_image = load_image("images/baba.png").await.unwrap();
 
-    render_view.capture_layer(move |device, queue, config, _scale_factor| {
-        let background_image = ScaledImagePass::new(
-            Some("Background Image"),
-            background_image,
-            device,
-            queue,
-            config,
-            LayerMode::Background,
-        );
-
-        Box::new(background_image)
-    });
+    let background_image_pass = Box::new(ScaledImagePass::new(
+        Some("Background Image"),
+        background_image,
+        &render_view.device,
+        &render_view.queue,
+        &render_view.config,
+        LayerMode::Background,
+    ));
 
     let mut audio = AudioFile::open(&cli.audio_file).await.unwrap();
     let signal = audio.dump_mono(cli.seconds);
@@ -124,25 +121,43 @@ pub async fn main() {
 
     #[cfg(not(target_arch = "wasm32"))]
     let audio_player = crate::audio::AudioPlayer::from(&cli);
+    let song_length = signal.len() as f32 / audio.sample_rate() as f32; // TODO divie by channel count
 
-    render_view.capture_layer(move |device, _queue, config, _scale_factor| {
-        Box::new(AnalysisLayerPass::new(
-            Some("Analysis Pass"),
-            analysis.0,
-            device,
-            config,
-            LayerMode::AlphaBlend,
-            Gradient::new(Some("InitGradient"), ColorMap::default().grad(), device),
-            //audio_player.progress,
-            #[cfg(not(target_arch = "wasm32"))]
-            audio_player,
-            signal.len() as f32 / audio.sample_rate() as f32, // TODO divie by channel count
-        ))
-    });
+    let analysis_pass = Box::new(AnalysisLayerPass::new(
+        Some("Analysis Pass"),
+        &analysis.0,
+        &render_view.device,
+        &render_view.config,
+        LayerMode::AlphaBlend,
+        Gradient::new(
+            Some("InitGradient"),
+            ColorMap::default().grad(),
+            &render_view.device,
+        ),
+    ));
 
-    render_view.capture_layer(|device, _queue, config, scale_factor| {
-        Box::new(Gui::new(device, &event_loop, config.format, scale_factor))
-    });
+    /*
+    let meter_pass = Box::new(MeterPass::new(
+        &analysis.0,
+        &render_view.device,
+        &render_view.config,
+        #[cfg(not(target_arch = "wasm32"))]
+        audio_player,
+        song_length,
+    ));
+    */
+
+    let gui_pass = Box::new(Gui::new(
+        &render_view.device,
+        &event_loop,
+        render_view.config.format,
+        render_view.scale_factor,
+    ));
+
+    render_view.layers.push(background_image_pass);
+    render_view.layers.push(analysis_pass);
+    //render_view.layers.push(meter_pass);
+    render_view.layers.push(gui_pass);
 
     let mut event_handler = EventHandler::new(window, render_view);
 

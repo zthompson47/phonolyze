@@ -4,7 +4,7 @@ use winit::event::WindowEvent;
 
 use crate::{gradient::InnerGradient, render::Renderer};
 
-use super::Layer;
+use super::{Layer, LayerState};
 
 pub struct Gui {
     context: egui::Context,
@@ -85,17 +85,17 @@ impl Layer for Gui {
         self.window_state.on_event(&self.context, event)
     }
 
-    fn render(&mut self, renderer: &mut Renderer) {
+    fn render(&mut self, renderer: &mut Renderer, state: &mut LayerState) {
         let input = self.window_state.take_egui_input(renderer.window);
         let output = {
             self.context.run(input, |ctx| {
                 egui::Area::new("testitout").show(ctx, |ui| {
                     egui::ComboBox::from_label("Colormap")
-                        .selected_text(format!("{:?}", renderer.state.color_map))
+                        .selected_text(format!("{:?}", state.color_map))
                         .show_ui(ui, |ui| {
                             for color in ColorMap::iter() {
                                 ui.selectable_value(
-                                    &mut renderer.state.color_map,
+                                    &mut state.color_map,
                                     color,
                                     color.to_string(),
                                 );
