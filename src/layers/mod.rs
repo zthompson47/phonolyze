@@ -3,9 +3,11 @@ pub mod gui;
 pub mod meter;
 pub mod scaled_image;
 
+use std::sync::{Arc, Mutex};
+
 use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
 
-use crate::{layers::gui::ColorMap, render::Renderer};
+use crate::{audio::PlaybackPosition, layers::gui::ColorMap, render::Renderer};
 
 pub trait Layer {
     fn handle_event(
@@ -41,6 +43,7 @@ pub enum LayerMode {
 pub struct LayerState {
     pub color_map: ColorMap,
     pub prev_color_map: Option<ColorMap>,
+    pub progress: Option<Arc<Mutex<PlaybackPosition>>>,
 }
 
 impl LayerState {

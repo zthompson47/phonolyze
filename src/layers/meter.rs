@@ -15,6 +15,7 @@ use crate::{
     gradient::{Gradient, InnerGradient},
     layers::{Layer, LayerMode},
     render::Renderer,
+    uniforms::{self, Progress},
 };
 
 use super::LayerState;
@@ -47,30 +48,32 @@ pub struct MeterPass {
     num_indices: u32,
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
-    audio: AudioPlayer,
-    song_length: f32,
     last_update: Instant,
+    progress: Progress,
 }
 
 impl MeterPass {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        _analysis: &[Vec<f32>],
+        analysis: &[Vec<f32>],
         device: &wgpu::Device,
         config: &wgpu::SurfaceConfiguration,
-        #[cfg(not(target_arch = "wasm32"))] audio: AudioPlayer,
-        song_length: f32,
     ) -> Self {
         let label = Some("Meter");
-        let Tessellate {
-            vertex_buffer,
-            index_buffer,
-            num_indices,
-        } = tessellate(&audio, song_length, device);
-        let shader = device.create_shader_module(wgpu::include_wgsl!("analysis.wgsl"));
+        let (vertex_buffer, index_buffer, num_indices) = tessellate(analysis, device);
+        let shader = device.create_shader_module(wgpu::include_wgsl!("meter.wgsl"));
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label,
-            entries: &[],
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label,
@@ -90,7 +93,7 @@ impl MeterPass {
                 entry_point: "fragment_main",
                 targets: &[Some(wgpu::ColorTargetState {
                     format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),
@@ -102,9 +105,13 @@ impl MeterPass {
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
         });
+        let progress = uniforms::Progress::new(device);
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layout,
-            entries: &[],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: progress.binding_resource(),
+            }],
             label,
         });
 
@@ -114,9 +121,8 @@ impl MeterPass {
             num_indices,
             pipeline,
             bind_group,
-            audio,
-            song_length,
             last_update: Instant::now(),
+            progress,
         }
     }
 }
@@ -156,26 +162,27 @@ impl Layer for MeterPass {
     fn update(
         &mut self,
         _delta: instant::Duration,
-        _state: &mut LayerState,
+        state: &mut LayerState,
         _device: &wgpu::Device,
-        _queue: &wgpu::Queue,
+        queue: &wgpu::Queue,
         window: &Window,
     ) {
-        if let Ok(progress) = self.audio.progress.lock() {
-            let now = Instant::now();
-            let diff = if now > progress.instant {
-                (now - progress.instant).as_secs_f64()
-            } else {
-                -(progress.instant - now).as_secs_f64()
-            };
+        if let Some(progress) = &state.progress {
+            if let Ok(progress) = progress.lock() {
+                let now = Instant::now();
+                let diff = if now > progress.instant {
+                    (now - progress.instant).as_secs_f64()
+                } else {
+                    -(progress.instant - now).as_secs_f64()
+                };
 
-            let _pos = progress.music_position + diff;
+                let pos = progress.music_position + diff;
 
-            if Instant::now().duration_since(self.last_update) > Duration::from_millis(200) {
-                //self.camera
-                //    .update_progress([pos as f32, self.song_length, 0.0], queue);
+                //if Instant::now().duration_since(self.last_update) > Duration::from_millis(200) {
+                self.progress.update_position(pos as f32, queue);
                 window.request_redraw();
                 self.last_update = Instant::now();
+                //}
             }
         }
     }
@@ -204,15 +211,19 @@ impl Layer for MeterPass {
     }
 }
 
-struct Tessellate {
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    num_indices: u32,
-}
-
-fn tessellate(_audio: &AudioPlayer, _song_length: f32, device: &wgpu::Device) -> Tessellate {
-    let vertices: Vec<Vertex> = Vec::new();
-    let indices: Vec<u32> = vec![];
+fn tessellate(_analysis: &[Vec<f32>], device: &wgpu::Device) -> (wgpu::Buffer, wgpu::Buffer, u32) {
+    let vertices: Vec<Vertex> = vec![
+        Vertex {
+            position: [-1.0, 1.0, 0.0, 0.0],
+        },
+        Vertex {
+            position: [3.0, 1.0, 0.0, 0.0],
+        },
+        Vertex {
+            position: [-1.0, -3.0, 0.0, 0.0],
+        },
+    ];
+    let indices: Vec<u32> = vec![0, 1, 2];
     let label = Some("Meter");
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label,
@@ -226,9 +237,5 @@ fn tessellate(_audio: &AudioPlayer, _song_length: f32, device: &wgpu::Device) ->
     });
     let num_indices = indices.len() as u32;
 
-    Tessellate {
-        vertex_buffer,
-        index_buffer,
-        num_indices,
-    }
+    (vertex_buffer, index_buffer, num_indices)
 }

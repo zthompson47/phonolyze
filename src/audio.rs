@@ -4,7 +4,7 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::{mpsc, Arc, Mutex},
-    time::{Duration, Instant},
+    //time::{Duration, Instant},
 };
 
 use anyhow::{Error, Result};
@@ -177,14 +177,14 @@ impl std::fmt::Debug for AudioPlayer {
 
 #[derive(Debug)]
 pub struct PlaybackPosition {
-    pub instant: Instant,
+    pub instant: instant::Instant,
     pub music_position: f64,
 }
 
 impl Default for PlaybackPosition {
     fn default() -> Self {
         Self {
-            instant: Instant::now(),
+            instant: instant::Instant::now(),
             music_position: 0.0,
         }
     }
@@ -267,11 +267,11 @@ impl AudioPlayer {
             move |data: &mut [S], info: &cpal::OutputCallbackInfo| {
                 let mut input_fell_behind = false;
                 let timestamp = info.timestamp();
-                let instant = Instant::now()
+                let instant = instant::Instant::now()
                     + timestamp
                         .playback
                         .duration_since(&timestamp.callback)
-                        .unwrap_or_else(|| Duration::from_secs(0));
+                        .unwrap_or_else(|| instant::Duration::from_secs(0));
 
                 //let new_sample_count = data.len() / channels as usize;
                 //let samples_per_channel = sample_count as f64 / channels as f64;

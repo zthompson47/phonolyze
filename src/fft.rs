@@ -94,7 +94,7 @@ fn dft(signal: &[f32], window: &[f32]) -> (Vec<f32>, Vec<f32>) {
         //.map(|x| x.re / (size as f32).sqrt())
         //.map(|x| x.re.abs() / (size as f32).powi(2))
         //.map(|x| x.re.abs())
-        .map(|x| 20. * (x.norm() * 2. / size as f32).log10() )
+        .map(|x| 20. * (x.norm() * 2. / size as f32).log10())
         .collect();
 
     //dbg!(&positive_side);

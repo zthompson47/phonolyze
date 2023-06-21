@@ -94,11 +94,7 @@ impl Layer for Gui {
                         .selected_text(format!("{:?}", state.color_map))
                         .show_ui(ui, |ui| {
                             for color in ColorMap::iter() {
-                                ui.selectable_value(
-                                    &mut state.color_map,
-                                    color,
-                                    color.to_string(),
-                                );
+                                ui.selectable_value(&mut state.color_map, color, color.to_string());
                             }
                         });
                 });

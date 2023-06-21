@@ -8,10 +8,11 @@ mod gradient;
 mod layers;
 mod render;
 mod scale;
+mod uniforms;
 mod vertex;
 
 use clap::Parser;
-use layers::meter::MeterPass;
+use layers::{meter::MeterPass, LayerState};
 use winit::{event_loop::EventLoop, window::WindowBuilder};
 
 use crate::{
@@ -101,7 +102,20 @@ pub async fn main() {
             .expect("Couldn't append canvas to document body.");
     }
 
-    let mut render_view = RenderView::new(&window).await;
+    #[cfg(not(target_arch = "wasm32"))]
+    let audio_player = crate::audio::AudioPlayer::from(&cli);
+
+    let mut render_view = RenderView::new(
+        &window,
+        LayerState {
+            #[cfg(not(target_arch = "wasm32"))]
+            progress: Some(audio_player.progress.clone()),
+            #[cfg(target_arch = "wasm32")]
+            progress: None,
+            ..Default::default()
+        },
+    )
+    .await;
 
     let background_image = load_image("images/noise3.png").await.unwrap();
     //let background_image = load_image("images/baba.png").await.unwrap();
@@ -119,10 +133,6 @@ pub async fn main() {
     let signal = audio.dump_mono(cli.seconds);
     let analysis = stft(&signal, "hamming", cli.window_size, cli.jump_size);
 
-    #[cfg(not(target_arch = "wasm32"))]
-    let audio_player = crate::audio::AudioPlayer::from(&cli);
-    let song_length = signal.len() as f32 / audio.sample_rate() as f32; // TODO divie by channel count
-
     let analysis_pass = Box::new(AnalysisLayerPass::new(
         Some("Analysis Pass"),
         &analysis.0,
@@ -136,16 +146,11 @@ pub async fn main() {
         ),
     ));
 
-    /*
     let meter_pass = Box::new(MeterPass::new(
         &analysis.0,
         &render_view.device,
         &render_view.config,
-        #[cfg(not(target_arch = "wasm32"))]
-        audio_player,
-        song_length,
     ));
-    */
 
     let gui_pass = Box::new(Gui::new(
         &render_view.device,
@@ -156,7 +161,7 @@ pub async fn main() {
 
     render_view.layers.push(background_image_pass);
     render_view.layers.push(analysis_pass);
-    //render_view.layers.push(meter_pass);
+    render_view.layers.push(meter_pass);
     render_view.layers.push(gui_pass);
 
     let mut event_handler = EventHandler::new(window, render_view);

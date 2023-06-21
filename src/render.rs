@@ -20,12 +20,12 @@ pub struct RenderView {
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub layers: Vec<Box<dyn Layer>>,
-    pub layer_state: LayerState,
+    state: LayerState,
     pub scale_factor: f32,
 }
 
 impl RenderView {
-    pub async fn new(window: &winit::window::Window) -> Self {
+    pub async fn new(window: &Window, state: LayerState) -> Self {
         let scale_factor = window.scale_factor() as f32;
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -76,7 +76,7 @@ impl RenderView {
             queue,
             config,
             layers: vec![],
-            layer_state: LayerState::default(),
+            state,
             scale_factor,
         }
     }
@@ -99,7 +99,7 @@ impl RenderView {
         let _step = delta.as_secs_f32();
 
         self.layers.iter_mut().for_each(|layer| {
-            layer.update(delta, &mut self.layer_state, &self.device, &self.queue, window);
+            layer.update(delta, &mut self.state, &self.device, &self.queue, window);
         });
 
         /*
@@ -143,7 +143,7 @@ impl RenderView {
         };
 
         self.layers.iter_mut().for_each(|layer| {
-            layer.render(&mut renderer, &mut self.layer_state);
+            layer.render(&mut renderer, &mut self.state);
         });
 
         self.queue.submit(std::iter::once(encoder.finish()));
