@@ -8,8 +8,7 @@ use winit::{
 use crate::{
     layers::{Layer, LayerMode},
     render::Renderer,
-    scale::Scale,
-    vertex::{Vertex, SQUARE_VERTICES},
+    uniforms::Scale, vertex::{Vertex, VertexBase, SQUARE_VERTICES},
 };
 
 use super::LayerState;

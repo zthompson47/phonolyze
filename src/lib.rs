@@ -7,7 +7,6 @@ mod file;
 mod gradient;
 mod layers;
 mod render;
-mod scale;
 mod uniforms;
 mod vertex;
 

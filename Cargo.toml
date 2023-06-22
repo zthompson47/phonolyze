@@ -3,6 +3,8 @@ name = "phonolyze"
 version = "0.1.0"
 edition = "2021"
 description = "Visualize sound files"
+repository = "https://github.com/zthompson47/phonolyze"
+license = "MIT OR Apache-2.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
