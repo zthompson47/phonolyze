@@ -3,7 +3,7 @@ mod camera;
 mod ease;
 mod event;
 mod fft;
-mod file;
+mod resource;
 mod gradient;
 mod layers;
 mod render;
@@ -18,7 +18,7 @@ use crate::{
     audio::AudioFile,
     event::EventHandler,
     fft::stft,
-    file::load_image,
+    resource::load_image,
     gradient::Gradient,
     layers::{
         analysis::AnalysisLayerPass,

@@ -13,7 +13,7 @@ use symphonia::{
     default::{get_codecs, get_probe},
 };
 
-use crate::file as resource;
+use crate::resource;
 
 use super::CopyMethod;
 
