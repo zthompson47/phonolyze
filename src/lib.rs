@@ -1,12 +1,10 @@
 mod audio;
-mod camera;
 mod ease;
 mod event;
 mod fft;
-mod resource;
-mod gradient;
 mod layers;
 mod render;
+mod resource;
 mod uniforms;
 mod vertex;
 
@@ -18,8 +16,7 @@ use crate::{
     audio::AudioFile,
     event::EventHandler,
     fft::stft,
-    resource::load_image,
-    gradient::Gradient,
+    uniforms::Gradient,
     layers::{
         analysis::AnalysisLayerPass,
         gui::{ColorMap, Gui},
@@ -27,6 +24,7 @@ use crate::{
         LayerMode,
     },
     render::RenderView,
+    resource::load_image,
 };
 
 #[cfg(target_arch = "wasm32")]

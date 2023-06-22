@@ -60,7 +60,9 @@ impl AudioPlayer {
             pollster::block_on(async {
                 while let Ok(song) = rx_play_song.recv() {
                     let mut audio = AudioFile::open(song.to_str().unwrap()).await.unwrap();
-                    txrb_audio.push(Sample::SetChannels(audio.channels())).unwrap();
+                    txrb_audio
+                        .push(Sample::SetChannels(audio.channels()))
+                        .unwrap();
                     loop {
                         match audio.next_sample(CopyMethod::Interleaved) {
                             Ok(Some(signal)) => {
@@ -108,7 +110,8 @@ impl AudioPlayer {
                 let new_sample_count = data.len() / audio_channels.get();
                 let samples_per_channel = sample_count as f64 / audio_channels.get() as f64;
                 let start_time = samples_per_channel / sample_rate as f64;
-                let _end_time = (samples_per_channel + new_sample_count as f64) / sample_rate as f64;
+                let _end_time =
+                    (samples_per_channel + new_sample_count as f64) / sample_rate as f64;
 
                 if let Ok(mut pos) = progress_clone.lock() {
                     pos.instant = instant;

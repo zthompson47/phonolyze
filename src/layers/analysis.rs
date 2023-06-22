@@ -11,10 +11,10 @@ use winit::{
 
 use crate::{
     audio::{AudioPlayer, PlaybackPosition},
-    camera::{Camera, InnerCamera},
-    gradient::{Gradient, InnerGradient},
+    uniforms::{Gradient, InnerGradient},
     layers::{Layer, LayerMode},
     render::Renderer,
+    uniforms::{Camera, InnerCamera},
 };
 
 use super::LayerState;

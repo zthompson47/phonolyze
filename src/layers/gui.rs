@@ -2,7 +2,7 @@ use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 use winit::event::WindowEvent;
 
-use crate::{gradient::InnerGradient, render::Renderer};
+use crate::{uniforms::InnerGradient, render::Renderer};
 
 use super::{Layer, LayerState};
 
