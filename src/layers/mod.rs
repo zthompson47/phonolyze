@@ -9,26 +9,27 @@ use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
 
 use crate::{audio::PlaybackPosition, layers::gui::ColorMap, render::Renderer};
 
+#[allow(unused_variables)]
 pub trait Layer {
     fn handle_event(
         &mut self,
-        _event: &WindowEvent,
-        _queue: &wgpu::Queue,
+        event: &WindowEvent,
+        queue: &wgpu::Queue,
     ) -> egui_winit::EventResponse {
         egui_winit::EventResponse {
             consumed: false,
             repaint: false,
         }
     }
-    fn render(&mut self, _renderer: &mut Renderer, _state: &mut LayerState) {}
-    fn resize(&mut self, _new_size: PhysicalSize<u32>, _queue: &wgpu::Queue) {}
+    fn render(&mut self, renderer: &mut Renderer, state: &mut LayerState) {}
+    fn resize(&mut self, new_size: PhysicalSize<u32>, queue: &wgpu::Queue) {}
     fn update(
         &mut self,
-        _delta: instant::Duration,
-        _state: &mut LayerState,
-        _device: &wgpu::Device,
-        _queue: &wgpu::Queue,
-        _window: &Window,
+        delta: instant::Duration,
+        state: &mut LayerState,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        window: &Window,
     ) {
     }
 }

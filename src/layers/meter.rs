@@ -25,7 +25,7 @@ pub struct Vertex {
 }
 
 impl Vertex {
-    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+    fn buffer_layout() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -57,22 +57,11 @@ impl MeterPass {
         device: &wgpu::Device,
         config: &wgpu::SurfaceConfiguration,
     ) -> Self {
-        let label = Some("Meter");
+        let label = Some("MeterPass");
         let (vertex_buffer, index_buffer, num_indices) = tessellate(analysis, device);
         let shader = device.create_shader_module(wgpu::include_wgsl!("meter.wgsl"));
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label,
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        });
+        let progress = uniforms::Progress::new(device);
+        let bind_group_layout = uniforms::Progress::bind_group_layout(device);
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label,
             bind_group_layouts: &[&bind_group_layout],
@@ -84,7 +73,7 @@ impl MeterPass {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vertex_main",
-                buffers: &[Vertex::desc()],
+                buffers: &[Vertex::buffer_layout()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -103,7 +92,6 @@ impl MeterPass {
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
         });
-        let progress = uniforms::Progress::new(device);
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
@@ -159,7 +147,7 @@ impl Layer for MeterPass {
 
     fn update(
         &mut self,
-        _delta: instant::Duration,
+        _delta: Duration,
         state: &mut LayerState,
         _device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -176,11 +164,12 @@ impl Layer for MeterPass {
 
                 let pos = progress.music_position + diff;
 
-                //if Instant::now().duration_since(self.last_update) > Duration::from_millis(200) {
-                self.progress.update_position(pos as f32, queue);
-                window.request_redraw();
-                self.last_update = Instant::now();
-                //}
+                if Instant::now().duration_since(self.last_update) > Duration::from_millis(15) {
+                    self.progress
+                        .update_position(pos as f32, progress.music_length as f32, queue);
+                    window.request_redraw();
+                    self.last_update = Instant::now();
+                }
             }
         }
     }

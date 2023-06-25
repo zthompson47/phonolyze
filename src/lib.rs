@@ -6,7 +6,6 @@ mod layers;
 mod render;
 mod resource;
 mod uniforms;
-mod vertex;
 
 use clap::Parser;
 use layers::{meter::MeterPass, LayerState};
@@ -129,6 +128,10 @@ pub async fn main() {
     let mut audio = AudioFile::open(&cli.audio_file).await.unwrap();
     let signal = audio.dump_mono(cli.seconds);
     let analysis = stft(&signal, "hamming", cli.window_size, cli.jump_size);
+
+    if let Ok(mut progress) = audio_player.progress.lock() {
+        progress.music_length = signal.len() as f64 / audio.sample_rate() as f64;
+    }
 
     let analysis_pass = Box::new(AnalysisLayerPass::new(
         Some("Analysis Pass"),

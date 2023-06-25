@@ -9,6 +9,7 @@ enum Sample<S> {
     Signal(S),
     SetChannels(usize),
 }
+
 pub enum CopyMethod {
     Interleaved,
     Planar,
@@ -18,6 +19,7 @@ pub enum CopyMethod {
 pub struct PlaybackPosition {
     pub instant: instant::Instant,
     pub music_position: f64,
+    pub music_length: f64,
 }
 
 impl Default for PlaybackPosition {
@@ -25,6 +27,7 @@ impl Default for PlaybackPosition {
         Self {
             instant: instant::Instant::now(),
             music_position: 0.0,
+            music_length: 0.0,
         }
     }
 }

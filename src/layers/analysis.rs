@@ -11,10 +11,10 @@ use winit::{
 
 use crate::{
     audio::{AudioPlayer, PlaybackPosition},
-    uniforms::{Gradient, InnerGradient},
     layers::{Layer, LayerMode},
     render::Renderer,
     uniforms::{Camera, InnerCamera},
+    uniforms::{Gradient, InnerGradient},
 };
 
 use super::LayerState;
@@ -25,8 +25,8 @@ pub struct Vertex {
     position: [f32; 4],
 }
 
-impl Vertex {
-    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+impl<'a> Vertex {
+    fn buffer_layout() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -68,6 +68,7 @@ impl AnalysisLayerPass {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label,
             entries: &[
+                // TODO move to uniforms fn, use index as fn arg
                 // Gradient
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
@@ -103,7 +104,7 @@ impl AnalysisLayerPass {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vertex_main",
-                buffers: &[Vertex::desc()],
+                buffers: &[Vertex::buffer_layout()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
