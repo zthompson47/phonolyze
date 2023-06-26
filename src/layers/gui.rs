@@ -2,7 +2,7 @@ use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 use winit::event::WindowEvent;
 
-use crate::{uniforms::InnerGradient, render::Renderer};
+use crate::{render::Renderer, uniforms::InnerGradient};
 
 use super::{Layer, LayerState};
 
@@ -14,8 +14,8 @@ pub struct Gui {
 
 impl Gui {
     pub fn new(
-        device: &wgpu::Device,
         event_loop: &winit::event_loop::EventLoop<()>,
+        device: &wgpu::Device,
         texture_format: wgpu::TextureFormat,
         scale_factor: f32,
     ) -> Self {
@@ -155,5 +155,11 @@ impl Layer for Gui {
         }
     }
 
-    fn resize(&mut self, _new_size: winit::dpi::PhysicalSize<u32>, _queue: &wgpu::Queue) {}
+    fn resize(
+        &mut self,
+        _new_size: winit::dpi::PhysicalSize<u32>,
+        _queue: &wgpu::Queue,
+        _state: &mut LayerState,
+    ) {
+    }
 }

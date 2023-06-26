@@ -30,37 +30,26 @@ struct Camera {
 var<uniform> gradient: Gradient;
 @group(0) @binding(1)
 var<uniform> camera: Camera;
+@group(0) @binding(2)
+var<uniform> scale: vec4<f32>;
 
 @vertex
 fn vertex_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
 
     // Clip position
-    let pos = (in.clip_position.xy + camera.position) * camera.scale;
+    //let pos = (in.clip_position.xy + camera.position) * camera.scale;
+    let pos = (in.clip_position.xy + camera.position) * scale.xy;
     out.clip_position = vec4<f32>(pos, 0.0, 1.0);
 
     // Gradient color
     out.color = grad_at(gradient.rgba, gradient.domain, in.clip_position.z);
-
-    // Progress bar
-    //let normed_progress = camera.progress.x / camera.progress.y;
-    //let normed_clip = ((in.clip_position.x + 1.0) / 2.0); // * camera.progress.y;
-    //out.progress = f32(abs(normed_progress - normed_clip));
-    //out.show_progress = camera.progress.z;
 
     return out;
 }
 
 @fragment
 fn fragment_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    //var color = in.color;
-
-    // Progress bar
-    //if in.show_progress > 0.5 {
-    //    let p = smoothstep(0.0, 0.01, in.progress);
-    //    color = vec4f(color.rgb * p, color.a);
-    //}
-
     return in.color;
 }
 

@@ -1,3 +1,4 @@
+use instant::Duration;
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::layers::{Layer, LayerState};
@@ -9,7 +10,6 @@ pub struct Renderer<'a> {
     pub device: &'a wgpu::Device,
     pub queue: &'a wgpu::Queue,
     pub config: &'a wgpu::SurfaceConfiguration,
-    //pub state: &'a mut LayerState,
     pub scale_factor: f32,
 }
 
@@ -20,12 +20,12 @@ pub struct RenderView {
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub layers: Vec<Box<dyn Layer>>,
-    state: LayerState,
+    pub state: LayerState,
     pub scale_factor: f32,
 }
 
 impl RenderView {
-    pub async fn new(window: &Window, state: LayerState) -> Self {
+    pub async fn new(window: &Window) -> Self {
         let scale_factor = window.scale_factor() as f32;
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -44,7 +44,6 @@ impl RenderView {
             .await
             .unwrap();
         let limits = wgpu::Limits::downlevel_webgl2_defaults();
-        let _max_width = limits.max_texture_dimension_2d;
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
@@ -76,44 +75,21 @@ impl RenderView {
             queue,
             config,
             layers: vec![],
-            state,
+            state: Default::default(),
             scale_factor,
         }
     }
 
-    /*
-    pub async fn _update_background(&mut self, filename: &str) {
-        let background_image = load_image(filename).await;
-        let _background = ScaledImagePass::new(
-            Some("Background Image"),
-            background_image,
-            &self.device,
-            &self.queue,
-            &self.config,
-            wgpu::BlendState::REPLACE,
-        );
-    }
-    */
-
-    pub fn update(&mut self, delta: instant::Duration, window: &Window) {
-        let _step = delta.as_secs_f32();
-
+    pub fn update(&mut self, delta: Duration, window: &Window) {
         self.layers.iter_mut().for_each(|layer| {
             layer.update(delta, &mut self.state, &self.device, &self.queue, window);
         });
-
-        /*
-        let shader = self
-            .device
-            .create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
-        self.pipeline.vertex.module = &shader;
-        */
     }
 
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
             self.layers.iter_mut().for_each(|layer| {
-                layer.resize(new_size, &self.queue);
+                layer.resize(new_size, &self.queue, &mut self.state);
             });
             self.size = new_size;
             self.config.width = new_size.width;
@@ -138,7 +114,6 @@ impl RenderView {
             device: &self.device,
             queue: &self.queue,
             config: &self.config,
-            //state: &mut self.layer_state,
             scale_factor: self.scale_factor,
         };
 
@@ -149,16 +124,4 @@ impl RenderView {
         self.queue.submit(std::iter::once(encoder.finish()));
         frame.present();
     }
-
-    /*pub fn capture_layer<F>(&mut self, f: F)
-    where
-        F: FnOnce(&wgpu::Device, &wgpu::Queue, &wgpu::SurfaceConfiguration, f32) -> Box<dyn Layer>,
-    {
-        self.layers.push(f(
-            &self.device,
-            &self.queue,
-            &self.config,
-            self.scale_factor,
-        ));
-    }*/
 }

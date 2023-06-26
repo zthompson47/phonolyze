@@ -82,13 +82,13 @@ pub struct ScaledImagePass {
 
 impl ScaledImagePass {
     pub fn new(
-        label: Option<&str>,
         image: DynamicImage,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         config: &wgpu::SurfaceConfiguration,
         layer_mode: LayerMode,
     ) -> Self {
+        let label = Some("ScaledImagePass");
         let dimensions = image.dimensions();
         let size = wgpu::Extent3d {
             width: dimensions.0,
@@ -168,7 +168,6 @@ impl ScaledImagePass {
         });
 
         let scale = Scale::new(
-            label,
             47.,
             47.,
             (config.width, config.height).into(),
@@ -266,7 +265,12 @@ impl ScaledImagePass {
 }
 
 impl Layer for ScaledImagePass {
-    fn resize(&mut self, new_size: PhysicalSize<u32>, queue: &wgpu::Queue) {
+    fn resize(
+        &mut self,
+        new_size: PhysicalSize<u32>,
+        queue: &wgpu::Queue,
+        _state: &mut LayerState,
+    ) {
         self.scale.resize(new_size, queue);
         if !self.used {
             self.scale.unscale(queue);
@@ -288,8 +292,6 @@ impl Layer for ScaledImagePass {
             ..
         } = event
         {
-            let mut used = true;
-
             match virtual_keycode {
                 Some(VirtualKeyCode::Left | VirtualKeyCode::H) => {
                     self.scale.scale_x(0.01, queue);
@@ -306,12 +308,14 @@ impl Layer for ScaledImagePass {
                 Some(VirtualKeyCode::F) => {
                     self.scale.unscale(queue);
                 }
-                _ => used = false,
+                _ => {
+                    return egui_winit::EventResponse {
+                        consumed: false,
+                        repaint: false,
+                    }
+                }
             }
-
-            if used {
-                self.used = true;
-            }
+            self.used = true;
         }
 
         egui_winit::EventResponse {

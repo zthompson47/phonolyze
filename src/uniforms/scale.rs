@@ -41,7 +41,6 @@ impl Scale {
     /// * `image_size` - bla
     /// * `device` - bla
     pub fn new(
-        label: Option<&str>,
         max_x_val: f32,
         max_y_val: f32,
         window_size: PhysicalSize<u32>,
@@ -60,12 +59,25 @@ impl Scale {
             window_size,
             image_size,
             buffer: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label,
+                label: Some("ScaleUniform"),
                 contents: bytemuck::cast_slice(&[inner]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             }),
             max_x_val,
             max_y_val,
+        }
+    }
+
+    pub fn bind_group_entry(index: u32) -> wgpu::BindGroupLayoutEntry {
+        wgpu::BindGroupLayoutEntry {
+            binding: index,
+            visibility: wgpu::ShaderStages::VERTEX,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
         }
     }
 
@@ -82,7 +94,6 @@ impl Scale {
             .clamp(0., self.max_y_val);
         self.inner.x_norm = ease::inv_quint_ease_in(self.inner.x_val, 0., self.max_x_val);
         self.inner.y_norm = ease::inv_quint_ease_in(self.inner.y_val, 0., self.max_y_val);
-
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
 
@@ -90,7 +101,6 @@ impl Scale {
     pub fn scale_x(&mut self, amount: f32, queue: &wgpu::Queue) {
         self.inner.x_norm = (self.inner.x_norm + amount).clamp(0., 1.);
         self.inner.x_val = ease::quint_ease_in(self.inner.x_norm, 0., self.max_x_val);
-
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
 
@@ -98,7 +108,6 @@ impl Scale {
     pub fn scale_y(&mut self, amount: f32, queue: &wgpu::Queue) {
         self.inner.y_norm = (self.inner.y_norm + amount).clamp(0., 1.);
         self.inner.y_val = ease::quint_ease_in(self.inner.y_norm, 0., self.max_y_val);
-
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
 
@@ -106,14 +115,11 @@ impl Scale {
     pub fn resize(&mut self, new_size: PhysicalSize<u32>, queue: &wgpu::Queue) {
         let ratio_x = new_size.width as f32 / self.window_size.width as f32;
         let ratio_y = new_size.height as f32 / self.window_size.height as f32;
-
         self.window_size = new_size;
-
         self.inner.x_val = (self.inner.x_val * ratio_x).clamp(0., self.max_x_val);
         self.inner.y_val = (self.inner.y_val * ratio_y).clamp(0., self.max_y_val);
         self.inner.x_norm = ease::inv_quint_ease_in(self.inner.x_val, 0., self.max_x_val);
         self.inner.y_norm = ease::inv_quint_ease_in(self.inner.y_val, 0., self.max_y_val);
-
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
 }

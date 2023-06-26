@@ -56,6 +56,19 @@ impl Camera {
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
     }
 
+    pub fn bind_group_entry(index: u32) -> wgpu::BindGroupLayoutEntry {
+        wgpu::BindGroupLayoutEntry {
+            binding: index,
+            visibility: wgpu::ShaderStages::VERTEX,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        }
+    }
+
     pub fn binding_resource(&self) -> wgpu::BindingResource {
         self.buffer.as_entire_binding()
     }

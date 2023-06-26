@@ -8,14 +8,14 @@ mod resource;
 mod uniforms;
 
 use clap::Parser;
-use layers::{meter::MeterPass, LayerState};
+use layers::meter::MeterPass;
+use uniforms::Scale;
 use winit::{event_loop::EventLoop, window::WindowBuilder};
 
 use crate::{
     audio::AudioFile,
     event::EventHandler,
     fft::stft,
-    uniforms::Gradient,
     layers::{
         analysis::AnalysisLayerPass,
         gui::{ColorMap, Gui},
@@ -24,6 +24,7 @@ use crate::{
     },
     render::RenderView,
     resource::load_image,
+    uniforms::Gradient,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -80,6 +81,7 @@ pub async fn main() {
         .unwrap();
 
     #[cfg(target_arch = "wasm32")]
+    //if cfg!(target_arch = "wasm32")
     {
         // Winit prevents sizing with CSS, so we have to set
         // the size manually when on web.
@@ -101,27 +103,20 @@ pub async fn main() {
     #[cfg(not(target_arch = "wasm32"))]
     let audio_player = crate::audio::AudioPlayer::from(&cli);
 
-    let mut render_view = RenderView::new(
-        &window,
-        LayerState {
-            #[cfg(not(target_arch = "wasm32"))]
-            progress: Some(audio_player.progress.clone()),
-            #[cfg(target_arch = "wasm32")]
-            progress: None,
-            ..Default::default()
-        },
-    )
-    .await;
+    let mut ctx = RenderView::new(&window).await;
+
+    if cfg!(not(target_arch = "wasm32")) {
+        ctx.state.progress = Some(audio_player.progress.clone());
+    }
 
     let background_image = load_image("images/noise3.png").await.unwrap();
     //let background_image = load_image("images/baba.png").await.unwrap();
 
     let background_image_pass = Box::new(ScaledImagePass::new(
-        Some("Background Image"),
         background_image,
-        &render_view.device,
-        &render_view.queue,
-        &render_view.config,
+        &ctx.device,
+        &ctx.queue,
+        &ctx.config,
         LayerMode::Background,
     ));
 
@@ -129,42 +124,48 @@ pub async fn main() {
     let signal = audio.dump_mono(cli.seconds);
     let analysis = stft(&signal, "hamming", cli.window_size, cli.jump_size);
 
+    let mut scale = Scale::new(
+        47.,
+        47.,
+        (ctx.config.width, ctx.config.height).into(),
+        (analysis.0.len() as u32, analysis.0[0].len() as u32).into(),
+        &ctx.device,
+    );
+    scale.unscale(&ctx.queue);
+    ctx.state.scale = Some(scale);
+
     if let Ok(mut progress) = audio_player.progress.lock() {
         progress.music_length = signal.len() as f64 / audio.sample_rate() as f64;
     }
 
     let analysis_pass = Box::new(AnalysisLayerPass::new(
-        Some("Analysis Pass"),
         &analysis.0,
-        &render_view.device,
-        &render_view.config,
+        &ctx,
+        //&ctx.device,
+        //&ctx.config,
         LayerMode::AlphaBlend,
         Gradient::new(
             Some("InitGradient"),
             ColorMap::default().grad(),
-            &render_view.device,
+            &ctx.device,
         ),
     ));
 
-    let meter_pass = Box::new(MeterPass::new(
-        &analysis.0,
-        &render_view.device,
-        &render_view.config,
-    ));
+    let meter_pass = Box::new(MeterPass::new(&analysis.0, &ctx));
 
     let gui_pass = Box::new(Gui::new(
-        &render_view.device,
         &event_loop,
-        render_view.config.format,
-        render_view.scale_factor,
+        &ctx.device,
+        ctx.config.format,
+        ctx.scale_factor,
     ));
 
-    render_view.layers.push(background_image_pass);
-    render_view.layers.push(analysis_pass);
-    render_view.layers.push(meter_pass);
-    render_view.layers.push(gui_pass);
+    ctx.layers.push(background_image_pass);
+    ctx.layers.push(analysis_pass);
+    ctx.layers.push(meter_pass);
+    ctx.layers.push(gui_pass);
 
-    let mut event_handler = EventHandler::new(window, render_view);
+    let mut event_handler = EventHandler::new(window, ctx);
 
     event_loop.run(move |event, _, control_flow| {
         event_handler.handle_event(event, control_flow);

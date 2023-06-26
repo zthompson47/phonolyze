@@ -1,7 +1,4 @@
-#![allow(unused_imports)]
-use std::sync::{mpsc, Arc, Mutex};
-
-use instant::{Duration, Instant};
+use instant::Instant;
 use wgpu::{util::DeviceExt, PrimitiveTopology};
 use winit::{
     dpi::PhysicalSize,
@@ -10,11 +7,10 @@ use winit::{
 };
 
 use crate::{
-    audio::{AudioPlayer, PlaybackPosition},
     layers::{Layer, LayerMode},
-    render::Renderer,
+    render::{RenderView, Renderer},
     uniforms::{Camera, InnerCamera},
-    uniforms::{Gradient, InnerGradient},
+    uniforms::{Gradient, Scale},
 };
 
 use super::LayerState;
@@ -56,77 +52,63 @@ pub struct AnalysisLayerPass {
 impl AnalysisLayerPass {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        label: Option<&str>,
         analysis: &Vec<Vec<f32>>,
-        device: &wgpu::Device,
-        config: &wgpu::SurfaceConfiguration,
+        ctx: &RenderView,
         layer_mode: LayerMode,
         gradient: Gradient,
     ) -> Self {
-        let (vertex_buffer, index_buffer, num_indices) = tessellate(analysis, device);
-        let shader = device.create_shader_module(wgpu::include_wgsl!("analysis.wgsl"));
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label,
-            entries: &[
-                // TODO move to uniforms fn, use index as fn arg
-                // Gradient
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
+        let label = Some("AnalysisPass");
+        let (vertex_buffer, index_buffer, num_indices) = tessellate(analysis, &ctx.device);
+        let shader = ctx
+            .device
+            .create_shader_module(wgpu::include_wgsl!("analysis.wgsl"));
+        let bind_group_layout =
+            ctx.device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label,
+                    entries: &[
+                        Gradient::bind_group_entry(0),
+                        Camera::bind_group_entry(1),
+                        Scale::bind_group_entry(2),
+                    ],
+                });
+        let pipeline_layout = ctx
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label,
+                bind_group_layouts: &[&bind_group_layout],
+                push_constant_ranges: &[],
+            });
+        let pipeline = ctx
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label,
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: "vertex_main",
+                    buffers: &[Vertex::buffer_layout()],
                 },
-                // Camera
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: "fragment_main",
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: ctx.config.format,
+                        blend: Some(match layer_mode {
+                            LayerMode::Background => wgpu::BlendState::REPLACE,
+                            LayerMode::AlphaBlend => wgpu::BlendState::ALPHA_BLENDING,
+                        }),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: PrimitiveTopology::TriangleList,
+                    ..Default::default()
                 },
-            ],
-        });
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label,
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
-        });
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label,
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vertex_main",
-                buffers: &[Vertex::buffer_layout()],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fragment_main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(match layer_mode {
-                        LayerMode::Background => wgpu::BlendState::REPLACE,
-                        LayerMode::AlphaBlend => wgpu::BlendState::ALPHA_BLENDING,
-                    }),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                //topology: PrimitiveTopology::PointList,
-                topology: PrimitiveTopology::TriangleList,
-                ..Default::default()
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview: None,
-        });
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState::default(),
+                multiview: None,
+            });
         let camera = Camera::new(
             Some("Camera"),
             InnerCamera {
@@ -137,9 +119,9 @@ impl AnalysisLayerPass {
                 #[cfg(target_arch = "wasm32")]
                 progress: [0.0, 0.0, 0.0, 0.0],
             },
-            device,
+            &ctx.device,
         );
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -149,6 +131,10 @@ impl AnalysisLayerPass {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: camera.binding_resource(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: ctx.state.scale.as_ref().unwrap().binding_resource(),
                 },
             ],
             label,
@@ -228,12 +214,23 @@ fn tessellate(
 }
 
 impl Layer for AnalysisLayerPass {
-    fn resize(&mut self, _new_size: PhysicalSize<u32>, _queue: &wgpu::Queue) {}
+    fn resize(&mut self, new_size: PhysicalSize<u32>, queue: &wgpu::Queue, state: &mut LayerState) {
+        if let LayerState {
+            scale: Some(scale), ..
+        } = state
+        {
+            scale.resize(new_size, queue);
+            //if !self.used {
+            //    scale.unscale(queue);
+            //}
+        }
+    }
 
     fn handle_event(
         &mut self,
         event: &WindowEvent,
         queue: &wgpu::Queue,
+        //_state: &mut LayerState,
     ) -> egui_winit::EventResponse {
         if let WindowEvent::KeyboardInput {
             input:

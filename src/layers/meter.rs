@@ -12,8 +12,8 @@ use winit::{
 use crate::{
     audio::{AudioPlayer, PlaybackPosition},
     layers::{Layer, LayerMode},
-    render::Renderer,
-    uniforms::{self, Camera, Gradient, InnerCamera, InnerGradient, Progress},
+    render::{RenderView, Renderer},
+    uniforms::{self, Camera, Gradient, InnerCamera, InnerGradient, Progress, Scale},
 };
 
 use super::LayerState;
@@ -51,53 +51,68 @@ pub struct MeterPass {
 }
 
 impl MeterPass {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        analysis: &[Vec<f32>],
-        device: &wgpu::Device,
-        config: &wgpu::SurfaceConfiguration,
-    ) -> Self {
+    pub fn new(analysis: &[Vec<f32>], ctx: &RenderView) -> Self {
         let label = Some("MeterPass");
-        let (vertex_buffer, index_buffer, num_indices) = tessellate(analysis, device);
-        let shader = device.create_shader_module(wgpu::include_wgsl!("meter.wgsl"));
-        let progress = uniforms::Progress::new(device);
-        let bind_group_layout = uniforms::Progress::bind_group_layout(device);
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label,
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
-        });
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label,
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vertex_main",
-                buffers: &[Vertex::buffer_layout()],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fragment_main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: PrimitiveTopology::TriangleList,
-                ..Default::default()
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview: None,
-        });
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let (vertex_buffer, index_buffer, num_indices) = tessellate(analysis, &ctx.device);
+        let shader = ctx
+            .device
+            .create_shader_module(wgpu::include_wgsl!("meter.wgsl"));
+        let progress = uniforms::Progress::new(&ctx.device);
+        let bind_group_layout =
+            ctx.device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("ProgressPass"),
+                    entries: &[
+                        uniforms::Progress::bind_group_entry(0),
+                        uniforms::Scale::bind_group_entry(1),
+                    ],
+                });
+        let pipeline_layout = ctx
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label,
+                bind_group_layouts: &[&bind_group_layout],
+                push_constant_ranges: &[],
+            });
+        let pipeline = ctx
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label,
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: "vertex_main",
+                    buffers: &[Vertex::buffer_layout()],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: "fragment_main",
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: ctx.config.format,
+                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: PrimitiveTopology::TriangleList,
+                    ..Default::default()
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState::default(),
+                multiview: None,
+            });
+        let bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: progress.binding_resource(),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: progress.binding_resource(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: ctx.state.scale.as_ref().unwrap().binding_resource(),
+                },
+            ],
             label,
         });
 
@@ -114,7 +129,13 @@ impl MeterPass {
 }
 
 impl Layer for MeterPass {
-    fn resize(&mut self, _new_size: PhysicalSize<u32>, _queue: &wgpu::Queue) {}
+    fn resize(
+        &mut self,
+        _new_size: PhysicalSize<u32>,
+        _queue: &wgpu::Queue,
+        _state: &mut LayerState,
+    ) {
+    }
 
     fn handle_event(
         &mut self,
