@@ -32,7 +32,11 @@ impl EventHandler {
                 let mut repaint = false;
 
                 self.render_view.layers.iter_mut().for_each(|layer| {
-                    let response = layer.handle_event(event, &self.render_view.queue);
+                    let response = layer.handle_event(
+                        event,
+                        &self.render_view.queue,
+                        &mut self.render_view.state,
+                    );
 
                     if response.consumed {
                         consumed = true;

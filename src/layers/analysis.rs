@@ -47,6 +47,7 @@ pub struct AnalysisLayerPass {
     gradient: Gradient,
     camera: Camera,
     last_update: Instant,
+    used: bool,
 }
 
 impl AnalysisLayerPass {
@@ -150,6 +151,7 @@ impl AnalysisLayerPass {
             bind_group,
             camera,
             last_update: Instant::now(),
+            used: false,
         }
     }
 }
@@ -220,9 +222,9 @@ impl Layer for AnalysisLayerPass {
         } = state
         {
             scale.resize(new_size, queue);
-            //if !self.used {
-            //    scale.unscale(queue);
-            //}
+            if !self.used {
+                scale.unscale(queue);
+            }
         }
     }
 
@@ -230,7 +232,7 @@ impl Layer for AnalysisLayerPass {
         &mut self,
         event: &WindowEvent,
         queue: &wgpu::Queue,
-        //_state: &mut LayerState,
+        state: &mut LayerState,
     ) -> egui_winit::EventResponse {
         if let WindowEvent::KeyboardInput {
             input:
@@ -242,7 +244,41 @@ impl Layer for AnalysisLayerPass {
             ..
         } = event
         {
-            match virtual_keycode {
+            if let LayerState {
+                scale: Some(scale), ..
+            } = state
+            {
+                match virtual_keycode {
+                    Some(VirtualKeyCode::Left | VirtualKeyCode::H) => {
+                        scale.scale_x(0.01, queue);
+                    }
+                    Some(VirtualKeyCode::Right | VirtualKeyCode::L) => {
+                        scale.scale_x(-0.01, queue);
+                    }
+                    Some(VirtualKeyCode::Down | VirtualKeyCode::J) => {
+                        scale.scale_y(0.01, queue);
+                    }
+                    Some(VirtualKeyCode::Up | VirtualKeyCode::K) => {
+                        scale.scale_y(-0.01, queue);
+                    }
+                    Some(VirtualKeyCode::F) => {
+                        scale.unscale(queue);
+                    }
+                    _ => {
+                        return egui_winit::EventResponse {
+                            consumed: false,
+                            repaint: false,
+                        }
+                    }
+                }
+                self.used = true;
+                return egui_winit::EventResponse {
+                    consumed: false,
+                    repaint: true,
+                };
+            }
+
+            /*match virtual_keycode {
                 Some(VirtualKeyCode::A) => {
                     self.camera.move_horizontal(-0.03, queue);
                 }
@@ -268,12 +304,12 @@ impl Layer for AnalysisLayerPass {
                     self.camera.scale_vertical(0.03, queue);
                 }
                 _ => {}
-            }
+            }*/
         }
 
         egui_winit::EventResponse {
             consumed: false,
-            repaint: true,
+            repaint: false,
         }
     }
 

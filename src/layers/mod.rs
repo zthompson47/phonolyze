@@ -15,7 +15,7 @@ pub trait Layer {
         &mut self,
         event: &WindowEvent,
         queue: &wgpu::Queue,
-        //state: &mut LayerState,
+        state: &mut LayerState,
     ) -> egui_winit::EventResponse {
         egui_winit::EventResponse {
             consumed: false,

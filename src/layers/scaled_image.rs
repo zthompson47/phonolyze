@@ -281,6 +281,7 @@ impl Layer for ScaledImagePass {
         &mut self,
         event: &WindowEvent,
         queue: &wgpu::Queue,
+        _state: &mut LayerState,
     ) -> egui_winit::EventResponse {
         if let WindowEvent::KeyboardInput {
             input:

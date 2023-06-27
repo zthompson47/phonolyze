@@ -141,6 +141,7 @@ impl Layer for MeterPass {
         &mut self,
         event: &WindowEvent,
         _queue: &wgpu::Queue,
+        _state: &mut LayerState,
     ) -> egui_winit::EventResponse {
         if let WindowEvent::KeyboardInput {
             input:
@@ -162,7 +163,7 @@ impl Layer for MeterPass {
 
         egui_winit::EventResponse {
             consumed: false,
-            repaint: true,
+            repaint: false,
         }
     }
 

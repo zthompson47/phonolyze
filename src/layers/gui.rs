@@ -81,6 +81,7 @@ impl Layer for Gui {
         &mut self,
         event: &WindowEvent,
         _queue: &wgpu::Queue,
+        _state: &mut LayerState,
     ) -> egui_winit::EventResponse {
         self.window_state.on_event(&self.context, event)
     }
