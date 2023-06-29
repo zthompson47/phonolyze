@@ -13,7 +13,7 @@ use crate::{
     audio::{AudioPlayer, PlaybackPosition},
     layers::{Layer, LayerMode},
     render::{RenderView, Renderer},
-    uniforms::{self, Camera, Gradient, InnerCamera, InnerGradient, Progress, Scale},
+    uniforms::{self, Camera, Gradient, InnerGradient, Progress, Scale},
 };
 
 use super::LayerState;
@@ -186,7 +186,7 @@ impl Layer for MeterPass {
 
                 let pos = progress.music_position + diff;
 
-                if Instant::now().duration_since(self.last_update) > Duration::from_millis(15) {
+                if Instant::now().duration_since(self.last_update) > Duration::from_millis(222) {
                     self.progress
                         .update_position(pos as f32, progress.music_length as f32, queue);
                     window.request_redraw();

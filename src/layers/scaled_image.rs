@@ -238,12 +238,12 @@ impl ScaledImagePass {
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
-                entry_point: "vs_main",
+                entry_point: "vertex_main",
                 buffers: &[Vertex::buffer_layout()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
-                entry_point: "fs_main",
+                entry_point: "fragment_main",
                 targets: &[Some(wgpu::ColorTargetState {
                     format: config.format,
                     blend: Some(match layer_mode {
@@ -275,6 +275,7 @@ impl Layer for ScaledImagePass {
         if !self.used {
             self.scale.unscale(queue);
         }
+        //dbg!(&self.scale);
     }
 
     fn handle_event(

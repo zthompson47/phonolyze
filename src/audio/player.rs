@@ -49,7 +49,7 @@ impl AudioPlayer {
             rtrb::RingBuffer::<Sample<S>>::new(latency_samples * 2);
         let (tx_play_song, rx_play_song) = mpsc::channel::<PathBuf>();
         //let (tx_stop_song, rx_stop_song) = mpsc::sync_channel::<()>(1);
-        dbg!(sample_rate, channels, latency_frames, latency_samples);
+        dbg!("output device", sample_rate, channels, latency_frames, latency_samples);
 
         let audio_channels: Cell<usize> = Cell::new(channels as usize);
         for _ in 0..latency_samples {

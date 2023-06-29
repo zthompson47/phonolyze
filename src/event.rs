@@ -57,6 +57,14 @@ impl EventHandler {
 
         match event {
             Event::WindowEvent {
+                event: WindowEvent::ModifiersChanged(mods),
+                window_id,
+            } if window_id == self.window.id() => {
+                dbg!(mods);
+                self.render_view.state.modifiers = mods;
+            }
+
+            Event::WindowEvent {
                 event:
                     WindowEvent::ScaleFactorChanged {
                         scale_factor,
@@ -85,6 +93,7 @@ impl EventHandler {
                 event: WindowEvent::Resized(physical_size),
                 window_id,
             } if window_id == self.window.id() => {
+                dbg!("resize", physical_size);
                 self.render_view.resize(physical_size);
                 self.window.request_redraw();
             }

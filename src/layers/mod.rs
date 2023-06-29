@@ -48,6 +48,7 @@ pub struct LayerState {
     pub prev_color_map: Option<ColorMap>,
     pub progress: Option<Arc<Mutex<PlaybackPosition>>>,
     pub scale: Option<Scale>,
+    pub modifiers: winit::event::ModifiersState,
 }
 
 impl LayerState {

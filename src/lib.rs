@@ -105,14 +105,15 @@ pub async fn main() {
 
     let mut ctx = RenderView::new(&window).await;
 
-    if cfg!(not(target_arch = "wasm32")) {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
         ctx.state.progress = Some(audio_player.progress.clone());
     }
 
-    let background_image = load_image("images/noise3.png").await.unwrap();
-    //let background_image = load_image("images/baba.png").await.unwrap();
+    //let background_image = load_image("images/noise3.png").await.unwrap();
+    let background_image = load_image("images/baba.png").await.unwrap();
 
-    let background_image_pass = Box::new(ScaledImagePass::new(
+    let _background_image_pass = Box::new(ScaledImagePass::new(
         background_image,
         &ctx.device,
         &ctx.queue,
@@ -122,7 +123,10 @@ pub async fn main() {
 
     let mut audio = AudioFile::open(&cli.audio_file).await.unwrap();
     let signal = audio.dump_mono(cli.seconds);
+    dbg!(&signal.len());
     let analysis = stft(&signal, "hamming", cli.window_size, cli.jump_size);
+    dbg!(cli.window_size, cli.jump_size);
+    dbg!(&analysis.0.len(), &analysis.0[0].len());
 
     let mut scale = Scale::new(
         47.,
@@ -134,15 +138,16 @@ pub async fn main() {
     scale.unscale(&ctx.queue);
     ctx.state.scale = Some(scale);
 
+    #[cfg(not(target_arch = "wasm32"))]
     if let Ok(mut progress) = audio_player.progress.lock() {
         progress.music_length = signal.len() as f64 / audio.sample_rate() as f64;
     }
 
+    dbg!(&analysis.0.len(), &analysis.0[0].len());
+
     let analysis_pass = Box::new(AnalysisLayerPass::new(
         &analysis.0,
         &ctx,
-        //&ctx.device,
-        //&ctx.config,
         LayerMode::AlphaBlend,
         Gradient::new(
             Some("InitGradient"),
@@ -160,7 +165,7 @@ pub async fn main() {
         ctx.scale_factor,
     ));
 
-    ctx.layers.push(background_image_pass);
+    //ctx.layers.push(background_image_pass);
     ctx.layers.push(analysis_pass);
     ctx.layers.push(meter_pass);
     ctx.layers.push(gui_pass);

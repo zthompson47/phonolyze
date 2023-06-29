@@ -6,7 +6,8 @@ use crate::ease;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct InnerScale {
+// TODO remove pub
+pub struct InnerScale {
     x_norm: f32,
     y_norm: f32,
     x_val: f32,
@@ -16,11 +17,12 @@ struct InnerScale {
 #[derive(Debug)]
 pub struct Scale {
     /// Size of viewing window
-    window_size: PhysicalSize<u32>,
+    // TODO remove pub
+    pub window_size: PhysicalSize<u32>,
     /// Size of displayed image
-    image_size: PhysicalSize<u32>,
+    pub image_size: PhysicalSize<u32>,
     /// Scaling factor uniforms for wgpu
-    inner: InnerScale,
+    pub inner: InnerScale,
     /// Buffer for wgpu updates
     buffer: wgpu::Buffer,
     /// Maximum horizontal scale-out factor
@@ -41,8 +43,8 @@ impl Scale {
     /// * `image_size` - bla
     /// * `device` - bla
     pub fn new(
-        max_x_val: f32,
-        max_y_val: f32,
+        max_x_factor: f32,
+        max_y_factor: f32,
         window_size: PhysicalSize<u32>,
         image_size: PhysicalSize<u32>,
         device: &wgpu::Device,
@@ -50,8 +52,8 @@ impl Scale {
         let inner = InnerScale {
             x_norm: 1.,
             y_norm: 1.,
-            x_val: ease::inv_quint_ease_in(1., 0., max_x_val),
-            y_val: ease::inv_quint_ease_in(1., 0., max_y_val),
+            x_val: ease::inv_quint_ease_in(1., 0., max_x_factor),
+            y_val: ease::inv_quint_ease_in(1., 0., max_y_factor),
         };
 
         Scale {
@@ -63,8 +65,8 @@ impl Scale {
                 contents: bytemuck::cast_slice(&[inner]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             }),
-            max_x_val,
-            max_y_val,
+            max_x_val: max_x_factor,
+            max_y_val: max_y_factor,
         }
     }
 

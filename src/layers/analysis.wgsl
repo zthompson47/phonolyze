@@ -23,7 +23,6 @@ struct Gradient {
 struct Camera {
     position: vec2<f32>,
     scale: vec2<f32>,
-    progress: vec4<f32>,
 };
 
 @group(0) @binding(0)
@@ -36,15 +35,12 @@ var<uniform> scale: vec4<f32>;
 @vertex
 fn vertex_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-
-    // Clip position
-    //let pos = (in.clip_position.xy + camera.position) * camera.scale;
-    let pos = (in.clip_position.xy + camera.position) * scale.xy;
-    out.clip_position = vec4<f32>(pos, 0.0, 1.0);
-
-    // Gradient color
+    out.clip_position = vec4<f32>(
+        (in.clip_position.xy + camera.position) * camera.scale * 2.0 - 1.0,
+        0.0,
+        1.0
+    );
     out.color = grad_at(gradient.rgba, gradient.domain, in.clip_position.z);
-
     return out;
 }
 

@@ -7,13 +7,12 @@ use winit::{
 };
 
 use crate::{
-    layers::{Layer, LayerMode},
     render::{RenderView, Renderer},
-    uniforms::{Camera, InnerCamera},
+    uniforms::Camera,
     uniforms::{Gradient, Scale},
 };
 
-use super::LayerState;
+use super::{Layer, LayerMode, LayerState};
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -110,18 +109,7 @@ impl AnalysisLayerPass {
                 multisample: wgpu::MultisampleState::default(),
                 multiview: None,
             });
-        let camera = Camera::new(
-            Some("Camera"),
-            InnerCamera {
-                position: [0.0, 0.0],
-                scale: [1.0, 1.0],
-                #[cfg(not(target_arch = "wasm32"))]
-                progress: [0.0, 0.0, 1.0, 0.0],
-                #[cfg(target_arch = "wasm32")]
-                progress: [0.0, 0.0, 0.0, 0.0],
-            },
-            &ctx.device,
-        );
+        let camera = Camera::new(&ctx.device);
         let bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layout,
             entries: &[
@@ -173,8 +161,8 @@ fn tessellate(
             col.iter().take(height).enumerate().for_each(|(j, level)| {
                 let vertex = Vertex {
                     position: [
-                        (i as f32 / (width as f32 - 1.0)) * 2.0 - 1.0,
-                        (j as f32 / (height as f32 - 1.0)) * 2.0 - 1.0,
+                        (i as f32 / (width as f32 - 1.0)),  // * 2.0 - 1.0,
+                        (j as f32 / (height as f32 - 1.0)), // * 2.0 - 1.0,
                         *level,
                         0.0,
                     ],
@@ -250,61 +238,68 @@ impl Layer for AnalysisLayerPass {
             {
                 match virtual_keycode {
                     Some(VirtualKeyCode::Left | VirtualKeyCode::H) => {
-                        scale.scale_x(0.01, queue);
+                        if state.modifiers.shift() {
+                            self.camera.move_x(-0.03, queue);
+                        } else {
+                            //scale.scale_x(-0.01, queue);
+                            self.camera.scale_x(-0.01, queue);
+                        }
                     }
+
                     Some(VirtualKeyCode::Right | VirtualKeyCode::L) => {
-                        scale.scale_x(-0.01, queue);
+                        if state.modifiers.shift() {
+                            self.camera.move_x(0.03, queue);
+                        } else {
+                            //scale.scale_x(0.01, queue);
+                            self.camera.scale_x(0.01, queue);
+                        }
                     }
+
                     Some(VirtualKeyCode::Down | VirtualKeyCode::J) => {
-                        scale.scale_y(0.01, queue);
+                        if state.modifiers.shift() {
+                            self.camera.move_y(-0.03, queue);
+                        } else {
+                            //scale.scale_y(-0.01, queue);
+                            self.camera.scale_y(-0.01, queue);
+                        }
                     }
+
                     Some(VirtualKeyCode::Up | VirtualKeyCode::K) => {
-                        scale.scale_y(-0.01, queue);
+                        if state.modifiers.shift() {
+                            self.camera.move_y(0.03, queue);
+                        } else {
+                            //scale.scale_y(0.01, queue);
+                            self.camera.scale_y(0.01, queue);
+                        }
                     }
+
                     Some(VirtualKeyCode::F) => {
                         scale.unscale(queue);
                     }
+
+                    Some(VirtualKeyCode::M) if state.modifiers.logo() => {
+                        self.camera.zero(queue);
+                    }
+
+                    Some(VirtualKeyCode::N) if state.modifiers.logo() => {
+                        self.camera.fill(queue);
+                    }
+
                     _ => {
+                        dbg!(virtual_keycode);
                         return egui_winit::EventResponse {
                             consumed: false,
                             repaint: false,
-                        }
+                        };
                     }
                 }
+                dbg!(&scale.window_size, &scale.image_size, &scale.inner);
                 self.used = true;
                 return egui_winit::EventResponse {
                     consumed: false,
                     repaint: true,
                 };
             }
-
-            /*match virtual_keycode {
-                Some(VirtualKeyCode::A) => {
-                    self.camera.move_horizontal(-0.03, queue);
-                }
-                Some(VirtualKeyCode::S) => {
-                    self.camera.move_horizontal(0.03, queue);
-                }
-                Some(VirtualKeyCode::Z) => {
-                    self.camera.scale_horizontal(-0.03, queue);
-                }
-                Some(VirtualKeyCode::X) => {
-                    self.camera.scale_horizontal(0.03, queue);
-                }
-                Some(VirtualKeyCode::D) => {
-                    self.camera.move_vertical(-0.03, queue);
-                }
-                Some(VirtualKeyCode::F) => {
-                    self.camera.move_vertical(0.03, queue);
-                }
-                Some(VirtualKeyCode::C) => {
-                    self.camera.scale_vertical(-0.03, queue);
-                }
-                Some(VirtualKeyCode::V) => {
-                    self.camera.scale_vertical(0.03, queue);
-                }
-                _ => {}
-            }*/
         }
 
         egui_winit::EventResponse {
