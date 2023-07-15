@@ -4,7 +4,7 @@ mod progress;
 mod scale;
 
 pub use camera::Camera;
-pub use gradient::{Gradient, InnerGradient};
+pub use gradient::{ColorMap, Gradient, InnerGradient};
 pub use progress::{InnerProgress, Progress};
 pub use scale::Scale;
 

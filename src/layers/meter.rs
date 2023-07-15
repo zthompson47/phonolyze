@@ -11,12 +11,11 @@ use winit::{
 
 use crate::{
     audio::{AudioPlayer, PlaybackPosition},
-    layers::{Layer, LayerMode},
     render::{RenderView, Renderer},
     uniforms::{self, Camera, Gradient, InnerGradient, Progress, Scale},
 };
 
-use super::LayerState;
+use super::{Layer, LayerMode, LayerState};
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -64,7 +63,7 @@ impl MeterPass {
                     label: Some("ProgressPass"),
                     entries: &[
                         uniforms::Progress::bind_group_entry(0),
-                        uniforms::Scale::bind_group_entry(1),
+                        //uniforms::Scale::bind_group_entry(1),
                     ],
                 });
         let pipeline_layout = ctx
@@ -108,10 +107,10 @@ impl MeterPass {
                     binding: 0,
                     resource: progress.binding_resource(),
                 },
-                wgpu::BindGroupEntry {
+                /*wgpu::BindGroupEntry {
                     binding: 1,
                     resource: ctx.state.scale.as_ref().unwrap().binding_resource(),
-                },
+                },*/
             ],
             label,
         });

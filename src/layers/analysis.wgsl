@@ -13,24 +13,32 @@ struct VertexOutput {
     @location(0) color: vec4<f32>,
     @location(1) progress: f32,
     @location(2) show_progress: f32,
+    @location(3) level: f32,
 };
 
 struct Gradient {
-    rgba: mat4x4<f32>,
-    domain: vec4<f32>,
+    //rgba: mat4x4<f32>,
+    //domain: vec4<f32>,
+    index: u32,
 };
+@group(0) @binding(0)
+var<uniform> gradient: Gradient;
 
 struct Camera {
     position: vec2<f32>,
     scale: vec2<f32>,
 };
-
-@group(0) @binding(0)
-var<uniform> gradient: Gradient;
 @group(0) @binding(1)
 var<uniform> camera: Camera;
+
 @group(0) @binding(2)
-var<uniform> scale: vec4<f32>;
+var t_diffuse: texture_1d<f32>;
+@group(0) @binding(3)
+var s_diffuse: sampler;
+@group(0) @binding(4)
+var gradients: binding_array<texture_1d<f32>>;
+@group(0) @binding(5)
+var samplers: binding_array<sampler>;
 
 @vertex
 fn vertex_main(in: VertexInput) -> VertexOutput {
@@ -40,13 +48,18 @@ fn vertex_main(in: VertexInput) -> VertexOutput {
         0.0,
         1.0
     );
-    out.color = grad_at(gradient.rgba, gradient.domain, in.clip_position.z);
+    out.level = in.clip_position.z;
     return out;
 }
 
 @fragment
 fn fragment_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return in.color;
+    return textureSample(
+        gradients[gradient.index],
+        samplers[gradient.index],
+        in.level
+    );
+    //return textureSample(gradients[1], samplers[1], in.level);
 }
 
 fn grad_at(grad: mat4x4<f32>, domain: vec4<f32>, at: f32) -> vec4<f32> {

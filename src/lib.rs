@@ -1,4 +1,5 @@
 mod audio;
+mod color;
 mod ease;
 mod event;
 mod fft;
@@ -9,7 +10,6 @@ mod uniforms;
 
 use clap::Parser;
 use layers::meter::MeterPass;
-use uniforms::Scale;
 use winit::{event_loop::EventLoop, window::WindowBuilder};
 
 use crate::{
@@ -18,13 +18,13 @@ use crate::{
     fft::stft,
     layers::{
         analysis::AnalysisLayerPass,
-        gui::{ColorMap, Gui},
+        gui::Gui,
         scaled_image::ScaledImagePass,
         LayerMode,
     },
     render::RenderView,
     resource::load_image,
-    uniforms::Gradient,
+    uniforms::{ColorMap, Gradient},
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -113,7 +113,7 @@ pub async fn main() {
     //let background_image = load_image("images/noise3.png").await.unwrap();
     let background_image = load_image("images/baba.png").await.unwrap();
 
-    let _background_image_pass = Box::new(ScaledImagePass::new(
+    let background_image_pass = Box::new(ScaledImagePass::new(
         background_image,
         &ctx.device,
         &ctx.queue,
@@ -128,16 +128,6 @@ pub async fn main() {
     dbg!(cli.window_size, cli.jump_size);
     dbg!(&analysis.0.len(), &analysis.0[0].len());
 
-    let mut scale = Scale::new(
-        47.,
-        47.,
-        (ctx.config.width, ctx.config.height).into(),
-        (analysis.0.len() as u32, analysis.0[0].len() as u32).into(),
-        &ctx.device,
-    );
-    scale.unscale(&ctx.queue);
-    ctx.state.scale = Some(scale);
-
     #[cfg(not(target_arch = "wasm32"))]
     if let Ok(mut progress) = audio_player.progress.lock() {
         progress.music_length = signal.len() as f64 / audio.sample_rate() as f64;
@@ -151,8 +141,9 @@ pub async fn main() {
         LayerMode::AlphaBlend,
         Gradient::new(
             Some("InitGradient"),
-            ColorMap::default().grad(),
+            ColorMap::default().uniform(),
             &ctx.device,
+            &ctx.queue,
         ),
     ));
 
@@ -165,7 +156,7 @@ pub async fn main() {
         ctx.scale_factor,
     ));
 
-    //ctx.layers.push(background_image_pass);
+    ctx.layers.push(background_image_pass);
     ctx.layers.push(analysis_pass);
     ctx.layers.push(meter_pass);
     ctx.layers.push(gui_pass);

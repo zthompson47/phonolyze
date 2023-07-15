@@ -5,13 +5,9 @@ use winit::{
     event::{VirtualKeyCode, WindowEvent},
 };
 
-use crate::{
-    layers::{Layer, LayerMode},
-    render::Renderer,
-    uniforms::Scale,
-};
+use crate::{render::Renderer, uniforms::Scale};
 
-use super::LayerState;
+use super::{Layer, LayerMode, LayerState};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -154,16 +150,7 @@ impl ScaledImagePass {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
+                Scale::bind_group_entry(2, wgpu::ShaderStages::FRAGMENT),
             ],
         });
 
@@ -275,7 +262,6 @@ impl Layer for ScaledImagePass {
         if !self.used {
             self.scale.unscale(queue);
         }
-        //dbg!(&self.scale);
     }
 
     fn handle_event(
@@ -298,18 +284,23 @@ impl Layer for ScaledImagePass {
                 Some(VirtualKeyCode::Left | VirtualKeyCode::H) => {
                     self.scale.scale_x(0.01, queue);
                 }
+
                 Some(VirtualKeyCode::Right | VirtualKeyCode::L) => {
                     self.scale.scale_x(-0.01, queue);
                 }
+
                 Some(VirtualKeyCode::Down | VirtualKeyCode::J) => {
                     self.scale.scale_y(0.01, queue);
                 }
+
                 Some(VirtualKeyCode::Up | VirtualKeyCode::K) => {
                     self.scale.scale_y(-0.01, queue);
                 }
+
                 Some(VirtualKeyCode::F) => {
                     self.scale.unscale(queue);
                 }
+
                 _ => {
                     return egui_winit::EventResponse {
                         consumed: false,

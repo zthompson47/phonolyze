@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
 
-use crate::{audio::PlaybackPosition, layers::gui::ColorMap, render::Renderer, uniforms::Scale};
+use crate::{audio::PlaybackPosition, uniforms::ColorMap, render::Renderer, uniforms::Scale};
 
 #[allow(unused_variables)]
 pub trait Layer {

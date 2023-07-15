@@ -1,3 +1,6 @@
+//#![deny(elided_lifetimes_in_paths)]
+use std::num::NonZeroU32;
+
 use instant::Instant;
 use wgpu::{util::DeviceExt, PrimitiveTopology};
 use winit::{
@@ -9,7 +12,7 @@ use winit::{
 use crate::{
     render::{RenderView, Renderer},
     uniforms::Camera,
-    uniforms::{Gradient, Scale},
+    uniforms::Gradient,
 };
 
 use super::{Layer, LayerMode, LayerState};
@@ -34,7 +37,6 @@ impl<'a> Vertex {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct AnalysisLayerPass {
     layer_mode: LayerMode,
@@ -50,7 +52,6 @@ pub struct AnalysisLayerPass {
 }
 
 impl AnalysisLayerPass {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         analysis: &Vec<Vec<f32>>,
         ctx: &RenderView,
@@ -69,7 +70,38 @@ impl AnalysisLayerPass {
                     entries: &[
                         Gradient::bind_group_entry(0),
                         Camera::bind_group_entry(1),
-                        Scale::bind_group_entry(2),
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 2,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                multisampled: false,
+                                view_dimension: wgpu::TextureViewDimension::D1,
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            },
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 3,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 4,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                view_dimension: wgpu::TextureViewDimension::D1,
+                                multisampled: false,
+                            },
+                            count: NonZeroU32::new(4),
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 5,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: NonZeroU32::new(4),
+                        },
                     ],
                 });
         let pipeline_layout = ctx
@@ -110,7 +142,166 @@ impl AnalysisLayerPass {
                 multiview: None,
             });
         let camera = Camera::new(&ctx.device);
+
+        // Color map lut
+        let size = wgpu::Extent3d {
+            width: 256,
+            height: 1,
+            depth_or_array_layers: 1,
+        };
+        let texture_descriptor = wgpu::TextureDescriptor {
+            label,
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D1,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        };
+
+        let gray_texture = ctx.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Gray"),
+            view_formats: &[],
+            ..texture_descriptor
+        });
+        let red_texture = ctx.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Red"),
+            view_formats: &[],
+            ..texture_descriptor
+        });
+        let green_texture = ctx.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Green"),
+            view_formats: &[],
+            ..texture_descriptor
+        });
+        let blue_texture = ctx.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Blue"),
+            view_formats: &[],
+            ..texture_descriptor
+        });
+
+        let gray_texture_view = gray_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let red_texture_view = red_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let green_texture_view = green_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let blue_texture_view = blue_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let gray_texture_data: Vec<u8> = (0..=255).flat_map(|x| [x, x, x, 255]).collect();
+        let red_texture_data: Vec<u8> = (0..=255).flat_map(|x| [x, 0, 0, 255]).collect();
+        let green_texture_data: Vec<u8> = (0..=255).flat_map(|x| [0, x, 0, 255]).collect();
+        let blue_texture_data: Vec<u8> = (0..=255).flat_map(|x| [255 - x, 0, x, 255]).collect();
+
+        ctx.queue.write_texture(
+            gray_texture.as_image_copy(),
+            &gray_texture_data,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(1024),
+                rows_per_image: None,
+            },
+            size,
+        );
+        ctx.queue.write_texture(
+            red_texture.as_image_copy(),
+            &red_texture_data,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(1024),
+                rows_per_image: None,
+            },
+            size,
+        );
+        ctx.queue.write_texture(
+            green_texture.as_image_copy(),
+            &green_texture_data,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(1024),
+                rows_per_image: None,
+            },
+            size,
+        );
+        ctx.queue.write_texture(
+            blue_texture.as_image_copy(),
+            &blue_texture_data,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(1024),
+                rows_per_image: None,
+            },
+            size,
+        );
+
+        let texture = ctx.device.create_texture(&texture_descriptor);
+        let img: Vec<u8> = (0..=255).flat_map(|x| [x, x, x, 255]).collect();
+        ctx.queue.write_texture(
+            wgpu::ImageCopyTexture {
+                aspect: wgpu::TextureAspect::All,
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+            },
+            &img,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(1024),
+                rows_per_image: None,
+            },
+            size,
+        );
+        let view = texture.create_view(&wgpu::TextureViewDescriptor {
+            dimension: Some(wgpu::TextureViewDimension::D1),
+            ..Default::default()
+        });
+
+        let sampler = ctx.device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            address_mode_w: wgpu::AddressMode::Repeat,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+        let gray_sampler = ctx.device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            address_mode_w: wgpu::AddressMode::Repeat,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+        let red_sampler = ctx.device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            address_mode_w: wgpu::AddressMode::Repeat,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+        let green_sampler = ctx.device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            address_mode_w: wgpu::AddressMode::Repeat,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+        let blue_sampler = ctx.device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            address_mode_w: wgpu::AddressMode::Repeat,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
         let bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label,
             layout: &bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -123,10 +314,34 @@ impl AnalysisLayerPass {
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: ctx.state.scale.as_ref().unwrap().binding_resource(),
+                    resource: wgpu::BindingResource::TextureView(&view),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::Sampler(&sampler),
+                },
+
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::TextureViewArray(&[
+                        &gray_texture_view,
+                        &red_texture_view,
+                        &green_texture_view,
+                        &blue_texture_view,
+                    ]),
+                },
+
+                wgpu::BindGroupEntry {
+                    binding: 5,
+                    resource: wgpu::BindingResource::SamplerArray(&[
+                        &gray_sampler,
+                        &red_sampler,
+                        &green_sampler,
+                        &blue_sampler,
+                    ]),
+                },
+
             ],
-            label,
         });
 
         AnalysisLayerPass {
@@ -159,11 +374,13 @@ fn tessellate(
         .enumerate()
         .for_each(|(i, col)| {
             col.iter().take(height).enumerate().for_each(|(j, level)| {
+                // Normalize for the shader.
+                let level = ((level + 180.0) / 190.0).clamp(0.0, 1.0);
                 let vertex = Vertex {
                     position: [
-                        (i as f32 / (width as f32 - 1.0)),  // * 2.0 - 1.0,
-                        (j as f32 / (height as f32 - 1.0)), // * 2.0 - 1.0,
-                        *level,
+                        (i as f32 / (width as f32 - 1.0)),
+                        (j as f32 / (height as f32 - 1.0)),
+                        level,
                         0.0,
                     ],
                 };
@@ -204,16 +421,12 @@ fn tessellate(
 }
 
 impl Layer for AnalysisLayerPass {
-    fn resize(&mut self, new_size: PhysicalSize<u32>, queue: &wgpu::Queue, state: &mut LayerState) {
-        if let LayerState {
-            scale: Some(scale), ..
-        } = state
-        {
-            scale.resize(new_size, queue);
-            if !self.used {
-                scale.unscale(queue);
-            }
-        }
+    fn resize(
+        &mut self,
+        _new_size: PhysicalSize<u32>,
+        _queue: &wgpu::Queue,
+        _state: &mut LayerState,
+    ) {
     }
 
     fn handle_event(
@@ -232,74 +445,66 @@ impl Layer for AnalysisLayerPass {
             ..
         } = event
         {
-            if let LayerState {
-                scale: Some(scale), ..
-            } = state
-            {
-                match virtual_keycode {
-                    Some(VirtualKeyCode::Left | VirtualKeyCode::H) => {
-                        if state.modifiers.shift() {
-                            self.camera.move_x(-0.03, queue);
-                        } else {
-                            //scale.scale_x(-0.01, queue);
-                            self.camera.scale_x(-0.01, queue);
-                        }
-                    }
-
-                    Some(VirtualKeyCode::Right | VirtualKeyCode::L) => {
-                        if state.modifiers.shift() {
-                            self.camera.move_x(0.03, queue);
-                        } else {
-                            //scale.scale_x(0.01, queue);
-                            self.camera.scale_x(0.01, queue);
-                        }
-                    }
-
-                    Some(VirtualKeyCode::Down | VirtualKeyCode::J) => {
-                        if state.modifiers.shift() {
-                            self.camera.move_y(-0.03, queue);
-                        } else {
-                            //scale.scale_y(-0.01, queue);
-                            self.camera.scale_y(-0.01, queue);
-                        }
-                    }
-
-                    Some(VirtualKeyCode::Up | VirtualKeyCode::K) => {
-                        if state.modifiers.shift() {
-                            self.camera.move_y(0.03, queue);
-                        } else {
-                            //scale.scale_y(0.01, queue);
-                            self.camera.scale_y(0.01, queue);
-                        }
-                    }
-
-                    Some(VirtualKeyCode::F) => {
-                        scale.unscale(queue);
-                    }
-
-                    Some(VirtualKeyCode::M) if state.modifiers.logo() => {
-                        self.camera.zero(queue);
-                    }
-
-                    Some(VirtualKeyCode::N) if state.modifiers.logo() => {
-                        self.camera.fill(queue);
-                    }
-
-                    _ => {
-                        dbg!(virtual_keycode);
-                        return egui_winit::EventResponse {
-                            consumed: false,
-                            repaint: false,
-                        };
+            match virtual_keycode {
+                Some(VirtualKeyCode::Left | VirtualKeyCode::H) => {
+                    if state.modifiers.shift() {
+                        self.camera.move_x(-0.03, queue);
+                    } else {
+                        //scale.scale_x(-0.01, queue);
+                        self.camera.scale_x(-0.01, queue);
                     }
                 }
-                dbg!(&scale.window_size, &scale.image_size, &scale.inner);
-                self.used = true;
-                return egui_winit::EventResponse {
-                    consumed: false,
-                    repaint: true,
-                };
+
+                Some(VirtualKeyCode::Right | VirtualKeyCode::L) => {
+                    if state.modifiers.shift() {
+                        self.camera.move_x(0.03, queue);
+                    } else {
+                        //scale.scale_x(0.01, queue);
+                        self.camera.scale_x(0.01, queue);
+                    }
+                }
+
+                Some(VirtualKeyCode::Down | VirtualKeyCode::J) => {
+                    if state.modifiers.shift() {
+                        self.camera.move_y(-0.03, queue);
+                    } else {
+                        //scale.scale_y(-0.01, queue);
+                        self.camera.scale_y(-0.01, queue);
+                    }
+                }
+
+                Some(VirtualKeyCode::Up | VirtualKeyCode::K) => {
+                    if state.modifiers.shift() {
+                        self.camera.move_y(0.03, queue);
+                    } else {
+                        //scale.scale_y(0.01, queue);
+                        self.camera.scale_y(0.01, queue);
+                    }
+                }
+
+                Some(VirtualKeyCode::M) if state.modifiers.logo() => {
+                    self.camera.zero(queue);
+                }
+
+                Some(VirtualKeyCode::N) if state.modifiers.logo() => {
+                    self.camera.fill(queue);
+                }
+
+                _ => {
+                    dbg!(virtual_keycode);
+                    return egui_winit::EventResponse {
+                        consumed: false,
+                        repaint: false,
+                    };
+                }
             }
+            //dbg!(&scale.window_size, &scale.image_size, &scale.inner);
+            self.used = true;
+            return egui_winit::EventResponse {
+                consumed: false,
+                repaint: true,
+            };
+            //}
         }
 
         egui_winit::EventResponse {
@@ -317,7 +522,7 @@ impl Layer for AnalysisLayerPass {
         _window: &Window,
     ) {
         if let Some(new_color_map) = state.update_color_map() {
-            self.gradient.update(new_color_map.grad(), queue);
+            self.gradient.update(new_color_map.uniform(), queue);
         }
     }
 

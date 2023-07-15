@@ -36,7 +36,6 @@ impl Scale {
     ///
     /// # Arguments
     ///
-    /// * `label` - bla
     /// * `max_x_val` - bla
     /// * `max_y_val` - bla
     /// * `window_size` - bla
@@ -70,10 +69,13 @@ impl Scale {
         }
     }
 
-    pub fn bind_group_entry(index: u32) -> wgpu::BindGroupLayoutEntry {
+    pub fn bind_group_entry(
+        binding: u32,
+        visibility: wgpu::ShaderStages,
+    ) -> wgpu::BindGroupLayoutEntry {
         wgpu::BindGroupLayoutEntry {
-            binding: index,
-            visibility: wgpu::ShaderStages::VERTEX,
+            binding,
+            visibility,
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Uniform,
                 has_dynamic_offset: false,
