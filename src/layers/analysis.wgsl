@@ -17,27 +17,21 @@ struct VertexOutput {
 };
 
 struct Gradient {
-    //rgba: mat4x4<f32>,
-    //domain: vec4<f32>,
     index: u32,
 };
-@group(0) @binding(0)
-var<uniform> gradient: Gradient;
 
 struct Camera {
     position: vec2<f32>,
     scale: vec2<f32>,
 };
+
+@group(0) @binding(0)
+var<uniform> gradient: Gradient;
 @group(0) @binding(1)
 var<uniform> camera: Camera;
-
 @group(0) @binding(2)
-var t_diffuse: texture_1d<f32>;
-@group(0) @binding(3)
-var s_diffuse: sampler;
-@group(0) @binding(4)
 var gradients: binding_array<texture_1d<f32>>;
-@group(0) @binding(5)
+@group(0) @binding(3)
 var samplers: binding_array<sampler>;
 
 @vertex
@@ -59,7 +53,6 @@ fn fragment_main(in: VertexOutput) -> @location(0) vec4<f32> {
         samplers[gradient.index],
         in.level
     );
-    //return textureSample(gradients[1], samplers[1], in.level);
 }
 
 fn grad_at(grad: mat4x4<f32>, domain: vec4<f32>, at: f32) -> vec4<f32> {

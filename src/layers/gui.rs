@@ -31,56 +31,6 @@ impl Gui {
     }
 }
 
-/*
-#[derive(Copy, Clone, Debug, Default, EnumIter, Display, PartialEq)]
-pub enum ColorMap {
-    Blue,
-    #[default]
-    Rgb,
-    RgbInv,
-    Crazy,
-}
-
-impl ColorMap {
-    pub fn grad(&self) -> InnerGradient {
-        match &self {
-            Self::Rgb => InnerGradient {
-                r: [0.0, 0.0, 0.0, 1.0],
-                g: [0.0, 0.0, 1.0, 0.0],
-                b: [0.0, 1.0, 0.0, 0.0],
-                a: [0.0, 0.8, 1.0, 1.0],
-                domain: [-150.0, -80.0, -40.0, 0.0],
-                //index: 0,
-            },
-            Self::Blue => InnerGradient {
-                r: [0.0, 0.0, 0.0, 0.2],
-                g: [0.0, 0.0, 0.2, 0.2],
-                b: [0.0, 1.0, 0.5, 1.0],
-                a: [0.0, 0.8, 1.0, 1.0],
-                domain: [-150.0, -80.0, -40.0, 0.0],
-                //index: 1,
-            },
-            Self::RgbInv => InnerGradient {
-                r: [1.0, 0.0, 0.0, 0.0],
-                g: [0.0, 1.0, 0.0, 0.0],
-                b: [0.0, 0.0, 1.0, 0.0],
-                a: [1.0, 1.0, 0.8, 0.0],
-                domain: [-150.0, -80.0, -40.0, 0.0],
-                //index: 2,
-            },
-            Self::Crazy => InnerGradient {
-                r: [1.0, 0.2, 0.8, 0.2],
-                g: [0.0, 1.0, 0.0, 0.5],
-                b: [0.2, 0.0, 0.7, 0.3],
-                a: [1.0, 1.0, 0.8, 0.0],
-                domain: [-150.0, -100.0, -80.0, 0.0],
-                //index: 3,
-            },
-        }
-    }
-}
-*/
-
 impl Layer for Gui {
     fn handle_event(
         &mut self,
