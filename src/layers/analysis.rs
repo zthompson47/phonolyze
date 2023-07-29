@@ -185,13 +185,12 @@ fn tessellate(
         .enumerate()
         .for_each(|(i, col)| {
             col.iter().take(height).enumerate().for_each(|(j, level)| {
-                // Normalize for the shader.
-                let level = ((level + 180.0) / 190.0).clamp(0.0, 1.0);
+                use crate::uniforms::NormDb;
                 let vertex = Vertex {
                     position: [
                         (i as f32 / (width as f32 - 1.0)),
                         (j as f32 / (height as f32 - 1.0)),
-                        level,
+                        level.normalize_decibels(),
                         0.0,
                     ],
                 };

@@ -178,100 +178,45 @@ impl ColorMap {
         }
     }
 
-    //domain: [-150.0, -80.0, -40.0, 0.0],
     fn data(&self) -> Vec<u8> {
         match &self {
-            Self::Rgb => colorgrad::CustomGradient::new()
-                .colors(&[
-                    Color::from_linear_rgba(0.0, 0.0, 0.0, 0.0),
-                    Color::from_linear_rgba(0.0, 0.0, 1.0, 0.8),
-                    Color::from_linear_rgba(0.0, 1.0, 0.0, 1.0),
-                    Color::from_linear_rgba(1.0, 0.0, 0.0, 1.0),
-                ])
-                .build()
-                .unwrap()
-                .colors(256)
-                .iter()
-                .flat_map(|c| c.to_rgba8())
-                .collect(),
-
-            Self::Blue => colorgrad::CustomGradient::new()
-                .colors(&[
-                    Color::from_linear_rgba(0.0, 0.0, 0.0, 0.0),
-                    Color::from_linear_rgba(0.0, 0.0, 1.0, 0.8),
-                    Color::from_linear_rgba(0.0, 0.2, 0.5, 1.0),
-                    Color::from_linear_rgba(0.2, 0.2, 1.0, 1.0),
-                ])
-                .build()
-                .unwrap()
-                .colors(256)
-                .iter()
-                .flat_map(|c| c.to_rgba8())
-                .collect(),
-
-            Self::Green => colorgrad::CustomGradient::new()
-                .colors(&[
-                    Color::from_linear_rgba(0.0, 0.0, 0.0, 0.0),
-                    Color::from_linear_rgba(0.0, 0.3, 0.0, 0.8),
-                    Color::from_linear_rgba(0.0, 0.6, 0.0, 1.0),
-                    Color::from_linear_rgba(0.0, 1.0, 0.0, 1.0),
-                ])
-                .build()
-                .unwrap()
-                .colors(256)
-                .iter()
-                .flat_map(|c| c.to_rgba8())
-                .collect(),
-
-            Self::Red => colorgrad::CustomGradient::new()
-                .colors(&[
-                    Color::from_linear_rgba(0.0, 0.0, 0.0, 0.0),
-                    Color::from_linear_rgba(0.3, 0.0, 0.0, 0.8),
-                    Color::from_linear_rgba(0.6, 0.0, 0.0, 1.0),
-                    Color::from_linear_rgba(1.0, 0.0, 0.0, 1.0),
-                ])
-                .build()
-                .unwrap()
-                .colors(256)
-                .iter()
-                .flat_map(|c| c.to_rgba8())
-                .collect(),
-
-            Self::RgbInv => colorgrad::CustomGradient::new()
-                .colors(&[
-                    Color::from_linear_rgba(1.0, 0.0, 0.0, 1.0),
-                    Color::from_linear_rgba(0.0, 1.0, 0.0, 1.0),
-                    Color::from_linear_rgba(0.0, 0.0, 1.0, 0.8),
-                    Color::from_linear_rgba(0.0, 0.0, 0.0, 0.0),
-                ])
-                .build()
-                .unwrap()
-                .colors(256)
-                .iter()
-                .flat_map(|c| c.to_rgba8())
-                .collect(),
-
+            Self::Rgb => grad([
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.8],
+                [0.0, 1.0, 0.0, 1.0],
+                [1.0, 0.0, 0.0, 1.0],
+            ]),
+            Self::Blue => grad([
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.8],
+                [0.0, 0.2, 0.5, 1.0],
+                [0.2, 0.2, 1.0, 1.0],
+            ]),
+            Self::Green => grad([
+                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.3, 0.0, 0.8],
+                [0.0, 0.6, 0.0, 1.0],
+                [0.0, 1.0, 0.0, 1.0],
+            ]),
+            Self::Red => grad([
+                [0.0, 0.0, 0.0, 0.0],
+                [0.3, 0.0, 0.0, 0.8],
+                [0.6, 0.0, 0.0, 1.0],
+                [1.0, 0.0, 0.0, 1.0],
+            ]),
+            Self::RgbInv => grad([
+                [1.0, 0.0, 0.0, 1.0],
+                [0.0, 1.0, 0.0, 1.0],
+                [0.0, 0.0, 1.0, 0.8],
+                [0.0, 0.0, 0.0, 0.0],
+            ]),
             Self::Crazy => grad([
                 [1.0, 0.0, 0.2, 1.0],
                 [0.2, 1.0, 0.0, 1.0],
                 [0.8, 0.0, 0.7, 0.8],
                 [0.2, 0.5, 0.3, 0.0],
             ]),
-            /*Self::Crazy => colorgrad::CustomGradient::new()
-            .colors(&[
-                Color::from_linear_rgba(1.0, 0.0, 0.2, 1.0),
-                Color::from_linear_rgba(0.2, 1.0, 0.0, 1.0),
-                Color::from_linear_rgba(0.8, 0.0, 0.7, 0.8),
-                Color::from_linear_rgba(0.2, 0.5, 0.3, 0.0),
-            ])
-            .build()
-            .unwrap()
-            .colors(256)
-            .iter()
-            .flat_map(|c| c.to_rgba8())
-            .collect(),*/
             Self::Gray => (0..=255).flat_map(|x| [x, x, x, 255]).collect(),
-
             Self::Zonks => (0..=255).flat_map(|x| [255 - x, 0, x, 255]).collect(),
         }
     }
@@ -280,11 +225,21 @@ impl ColorMap {
         for (i, c) in Self::iter().enumerate() {
             if c == *self {
                 return InnerGradient {
-                    index: [i as u32, 0, 0, 0]
+                    index: [i as u32, 0, 0, 0],
                 };
             }
         }
         panic!()
+    }
+}
+
+pub trait NormDb<T> {
+    fn normalize_decibels(&self) -> T;
+}
+
+impl NormDb<f32> for f32 {
+    fn normalize_decibels(&self) -> f32 {
+        ((*self + 150.0) / 150.0).clamp(0.0, 1.0)
     }
 }
 
@@ -296,6 +251,7 @@ fn grad(mat: [[f64; 4]; 4]) -> Vec<u8> {
             Color::from_linear_rgba(mat[2][0], mat[2][1], mat[2][2], mat[2][3]),
             Color::from_linear_rgba(mat[3][0], mat[3][1], mat[3][2], mat[3][3]),
         ])
+        .domain(&[0.0, 0.467, 0.733, 1.0])
         .build()
         .unwrap()
         .colors(256)
