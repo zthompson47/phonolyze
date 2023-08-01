@@ -3,6 +3,8 @@ use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 use wgpu::util::DeviceExt;
 
+use super::color;
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct InnerGradient {
@@ -156,6 +158,8 @@ pub enum ColorMap {
     RgbInv,
     Crazy,
     Zonks,
+    Asdf,
+    Qwer,
 }
 
 impl ColorMap {
@@ -218,6 +222,8 @@ impl ColorMap {
             ]),
             Self::Gray => (0..=255).flat_map(|x| [x, x, x, 255]).collect(),
             Self::Zonks => (0..=255).flat_map(|x| [255 - x, 0, x, 255]).collect(),
+            Self::Asdf => color::create_gradient_texture([0.0, 0.0, 1.0], [1.0, 0.0, 0.0]),
+            Self::Qwer => color::create_gradient_texture([0.6, 0.2, 0.2], [0.5, 0.7, 0.4]),
         }
     }
 

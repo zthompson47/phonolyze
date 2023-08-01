@@ -156,7 +156,7 @@ pub async fn main() {
         ctx.scale_factor,
     ));
 
-    ctx.layers.push(background_image_pass);
+    //ctx.layers.push(background_image_pass);
     ctx.layers.push(analysis_pass);
     ctx.layers.push(meter_pass);
     ctx.layers.push(gui_pass);

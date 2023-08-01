@@ -1,4 +1,5 @@
 mod camera;
+mod color;
 mod gradient;
 mod progress;
 mod scale;
