@@ -40,7 +40,7 @@ fn vertex_main(in: VertexInput) -> VertexOutput {
     out.clip_position = vec4<f32>(
         (in.clip_position.xy + camera.position) * camera.scale * 2.0 - 1.0,
         0.0,
-        1.0
+        1.0,
     );
     out.level = in.clip_position.z;
     return out;
@@ -51,7 +51,7 @@ fn fragment_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return textureSample(
         gradients[gradient.index],
         samplers[gradient.index],
-        in.level
+        in.level,
     );
 }
 

@@ -43,14 +43,13 @@ impl RenderView {
             })
             .await
             .unwrap();
-        let limits = wgpu::Limits::downlevel_webgl2_defaults();
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
+                    //features: wgpu::Features::empty(),
                     features: wgpu::Features::TEXTURE_BINDING_ARRAY,
-                    //wgpu::Features::empty(),
-                    limits,
+                    limits: wgpu::Limits::downlevel_webgl2_defaults(),
                 },
                 None,
             )

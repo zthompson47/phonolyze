@@ -16,12 +16,7 @@ use crate::{
     audio::AudioFile,
     event::EventHandler,
     fft::stft,
-    layers::{
-        analysis::AnalysisLayerPass,
-        gui::Gui,
-        scaled_image::ScaledImagePass,
-        LayerMode,
-    },
+    layers::{analysis::AnalysisLayerPass, gui::Gui, scaled_image::ScaledImagePass, LayerMode},
     render::RenderView,
     resource::load_image,
     uniforms::{ColorMap, Gradient},
@@ -113,7 +108,7 @@ pub async fn main() {
     //let background_image = load_image("images/noise3.png").await.unwrap();
     let background_image = load_image("images/baba.png").await.unwrap();
 
-    let background_image_pass = Box::new(ScaledImagePass::new(
+    let _background_image_pass = Box::new(ScaledImagePass::new(
         background_image,
         &ctx.device,
         &ctx.queue,

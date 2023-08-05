@@ -1,6 +1,4 @@
 //#![deny(elided_lifetimes_in_paths)]
-use std::num::NonZeroU32;
-
 use wgpu::{util::DeviceExt, PrimitiveTopology};
 use winit::{
     dpi::PhysicalSize,
@@ -68,22 +66,8 @@ impl AnalysisLayerPass {
                     entries: &[
                         Gradient::bind_group_entry(0),
                         Camera::bind_group_entry(1),
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 2,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Texture {
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                                view_dimension: wgpu::TextureViewDimension::D1,
-                                multisampled: false,
-                            },
-                            count: NonZeroU32::new(gradient.texture_count()),
-                        },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 3,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                            count: NonZeroU32::new(gradient.texture_count()),
-                        },
+                        gradient.texture_bg_entry(2),
+                        gradient.sampler_bg_entry(3),
                     ],
                 });
         let pipeline_layout = ctx

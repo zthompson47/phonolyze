@@ -1,6 +1,8 @@
 use ordered_float::OrderedFloat;
 use palette::{FromColor, Lab, Srgb, Xyz};
 
+use super::gradient::WIDTH;
+
 #[allow(unused)]
 #[derive(Default, Debug)]
 struct Msh {
@@ -130,12 +132,12 @@ fn interpolate_color(c1: Srgb, c2: Srgb, mut interp: f32) -> Srgb {
 }
 
 pub fn create_gradient_texture(a: [f32; 3], b: [f32; 3]) -> Vec<u8> {
-    (0..=255)
+    (0..WIDTH)
         .flat_map(|x| {
             let color = interpolate_color(
                 Srgb::new(a[0], a[1], a[2]),
                 Srgb::new(b[0], b[1], b[2]),
-                x as f32 / 255.0,
+                x as f32 / (WIDTH - 1) as f32,
             );
 
             let r = (color.red * 255.0).clamp(0.0, 255.0) as u8;

@@ -1,9 +1,13 @@
+use std::num::NonZeroU32;
+
 use colorgrad::Color;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 use wgpu::util::DeviceExt;
 
 use super::color;
+
+pub(super) const WIDTH: u32 = 512;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -36,7 +40,7 @@ impl Gradient {
                 });
                 let data: Vec<u8> = color_map.data();
                 let size = wgpu::Extent3d {
-                    width: 256,
+                    width: WIDTH,
                     height: 1,
                     depth_or_array_layers: 1,
                 };
@@ -46,7 +50,7 @@ impl Gradient {
                     &data,
                     wgpu::ImageDataLayout {
                         offset: 0,
-                        bytes_per_row: Some(1024),
+                        bytes_per_row: Some(WIDTH * 4),
                         rows_per_image: None,
                     },
                     size,
@@ -90,8 +94,9 @@ impl Gradient {
                     ..ColorMap::texture_descriptor()
                 });
                 let data: Vec<u8> = color_map.data();
+                dbg!(&color_map, data.len());
                 let size = wgpu::Extent3d {
-                    width: 256,
+                    width: WIDTH,
                     height: 1,
                     depth_or_array_layers: 1,
                 };
@@ -101,7 +106,7 @@ impl Gradient {
                     &data,
                     wgpu::ImageDataLayout {
                         offset: 0,
-                        bytes_per_row: Some(1024),
+                        bytes_per_row: Some(WIDTH * 4),
                         rows_per_image: None,
                     },
                     size,
@@ -118,9 +123,7 @@ impl Gradient {
                 contents: bytemuck::cast_slice(&[inner]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             }),
-            //color_maps,
             textures,
-            //sampler,
         }
     }
 
@@ -139,6 +142,28 @@ impl Gradient {
                 min_binding_size: None,
             },
             count: None,
+        }
+    }
+
+    pub fn texture_bg_entry(&self, index: u32) -> wgpu::BindGroupLayoutEntry {
+        wgpu::BindGroupLayoutEntry {
+            binding: index,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Texture {
+                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                view_dimension: wgpu::TextureViewDimension::D1,
+                multisampled: false,
+            },
+            count: NonZeroU32::new(self.texture_count()),
+        }
+    }
+
+    pub fn sampler_bg_entry(&self, index: u32) -> wgpu::BindGroupLayoutEntry {
+        wgpu::BindGroupLayoutEntry {
+            binding: index,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+            count: NonZeroU32::new(self.texture_count()),
         }
     }
 
@@ -164,15 +189,13 @@ pub enum ColorMap {
 
 impl ColorMap {
     fn texture_descriptor() -> wgpu::TextureDescriptor<'static> {
-        let size = wgpu::Extent3d {
-            width: 256,
-            height: 1,
-            depth_or_array_layers: 1,
-        };
-
         wgpu::TextureDescriptor {
             label: Some("ColorMap"),
-            size,
+            size: wgpu::Extent3d {
+                width: WIDTH,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D1,
@@ -220,8 +243,12 @@ impl ColorMap {
                 [0.8, 0.0, 0.7, 0.8],
                 [0.2, 0.5, 0.3, 0.0],
             ]),
-            Self::Gray => (0..=255).flat_map(|x| [x, x, x, 255]).collect(),
-            Self::Zonks => (0..=255).flat_map(|x| [255 - x, 0, x, 255]).collect(),
+            Self::Gray => (0..WIDTH)
+                .flat_map(|x| [norm_width(x), norm_width(x), norm_width(x), 255])
+                .collect(),
+            Self::Zonks => (0..WIDTH)
+                .flat_map(|x| [255 - norm_width(x), 0, norm_width(x), 255])
+                .collect(),
             Self::Asdf => color::create_gradient_texture([0.0, 0.0, 1.0], [1.0, 0.0, 0.0]),
             Self::Qwer => color::create_gradient_texture([0.6, 0.2, 0.2], [0.5, 0.7, 0.4]),
         }
@@ -237,6 +264,11 @@ impl ColorMap {
         }
         panic!()
     }
+}
+
+fn norm_width(x: u32) -> u8 {
+    let factor = x as f32 / WIDTH as f32;
+    (factor * 255.0).round() as u8
 }
 
 pub trait NormDb<T> {
@@ -260,7 +292,7 @@ fn grad(mat: [[f64; 4]; 4]) -> Vec<u8> {
         .domain(&[0.0, 0.467, 0.733, 1.0])
         .build()
         .unwrap()
-        .colors(256)
+        .colors(WIDTH as usize)
         .iter()
         .flat_map(|c| c.to_rgba8())
         .collect()
