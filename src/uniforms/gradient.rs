@@ -1,5 +1,3 @@
-use std::num::NonZeroU32;
-
 use colorgrad::Color;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
@@ -19,102 +17,50 @@ pub struct InnerGradient {
 pub struct Gradient {
     inner: InnerGradient,
     buffer: wgpu::Buffer,
-    textures: Vec<wgpu::TextureView>,
+    pub texture: wgpu::Texture,
+    pub texture_view: wgpu::TextureView,
+    pub sampler: wgpu::Sampler,
 }
 
 impl Gradient {
-    pub fn texture_count(&self) -> u32 {
-        self.textures.len() as u32
-    }
-
-    pub fn texture_views(
-        &self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) -> Vec<wgpu::TextureView> {
-        ColorMap::iter()
-            .map(|color_map| {
-                let texture = device.create_texture(&wgpu::TextureDescriptor {
-                    label: Some(format!("{:?}", color_map).as_str()),
-                    ..ColorMap::texture_descriptor()
-                });
-                let data: Vec<u8> = color_map.data();
-                let size = wgpu::Extent3d {
-                    width: WIDTH,
-                    height: 1,
-                    depth_or_array_layers: 1,
-                };
-
-                queue.write_texture(
-                    texture.as_image_copy(),
-                    &data,
-                    wgpu::ImageDataLayout {
-                        offset: 0,
-                        bytes_per_row: Some(WIDTH * 4),
-                        rows_per_image: None,
-                    },
-                    size,
-                );
-
-                texture.create_view(&wgpu::TextureViewDescriptor::default())
-            })
-            .collect()
-    }
-
-    pub fn samplers(&self, device: &wgpu::Device) -> Vec<wgpu::Sampler> {
-        let mut result = Vec::new();
-
-        for _ in 0..self.textures.len() {
-            let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-                address_mode_u: wgpu::AddressMode::Repeat,
-                address_mode_v: wgpu::AddressMode::Repeat,
-                address_mode_w: wgpu::AddressMode::Repeat,
-                mag_filter: wgpu::FilterMode::Linear,
-                min_filter: wgpu::FilterMode::Nearest,
-                mipmap_filter: wgpu::FilterMode::Nearest,
-                ..Default::default()
-            });
-
-            result.push(sampler);
-        }
-
-        result
-    }
-
     pub fn new(
         label: Option<&str>,
         inner: InnerGradient,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) -> Self {
-        let textures = ColorMap::iter()
-            .map(|color_map| {
-                let texture = device.create_texture(&wgpu::TextureDescriptor {
-                    label,
-                    ..ColorMap::texture_descriptor()
-                });
-                let data: Vec<u8> = color_map.data();
-                dbg!(&color_map, data.len());
-                let size = wgpu::Extent3d {
-                    width: WIDTH,
-                    height: 1,
-                    depth_or_array_layers: 1,
-                };
+        let color_map = ColorMap::default();
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label,
+            ..ColorMap::texture_descriptor()
+        });
+        let data: Vec<u8> = color_map.data();
 
-                queue.write_texture(
-                    texture.as_image_copy(),
-                    &data,
-                    wgpu::ImageDataLayout {
-                        offset: 0,
-                        bytes_per_row: Some(WIDTH * 4),
-                        rows_per_image: None,
-                    },
-                    size,
-                );
+        queue.write_texture(
+            texture.as_image_copy(),
+            &data,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(WIDTH * 4),
+                rows_per_image: None,
+            },
+            wgpu::Extent3d {
+                width: WIDTH,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+        );
 
-                texture.create_view(&wgpu::TextureViewDescriptor::default())
-            })
-            .collect();
+        let gradient_texture = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let gradient_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            address_mode_w: wgpu::AddressMode::Repeat,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
 
         Gradient {
             inner,
@@ -123,13 +69,32 @@ impl Gradient {
                 contents: bytemuck::cast_slice(&[inner]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             }),
-            textures,
+            texture,
+            texture_view: gradient_texture,
+            sampler: gradient_sampler,
         }
     }
 
     pub fn update(&mut self, inner: InnerGradient, queue: &wgpu::Queue) {
         self.inner = inner;
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.inner]));
+    }
+
+    pub fn update_gradient_texture(&self, data: Vec<u8>, queue: &wgpu::Queue) {
+        queue.write_texture(
+            self.texture.as_image_copy(),
+            &data,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(WIDTH * 4),
+                rows_per_image: None,
+            },
+            wgpu::Extent3d {
+                width: WIDTH,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+        );
     }
 
     pub fn bind_group_entry(index: u32) -> wgpu::BindGroupLayoutEntry {
@@ -154,7 +119,7 @@ impl Gradient {
                 view_dimension: wgpu::TextureViewDimension::D1,
                 multisampled: false,
             },
-            count: NonZeroU32::new(self.texture_count()),
+            count: None,
         }
     }
 
@@ -163,7 +128,7 @@ impl Gradient {
             binding: index,
             visibility: wgpu::ShaderStages::FRAGMENT,
             ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-            count: NonZeroU32::new(self.texture_count()),
+            count: None,
         }
     }
 
@@ -205,7 +170,7 @@ impl ColorMap {
         }
     }
 
-    fn data(&self) -> Vec<u8> {
+    pub fn data(&self) -> Vec<u8> {
         match &self {
             Self::Rgb => grad([
                 [0.0, 0.0, 0.0, 0.0],

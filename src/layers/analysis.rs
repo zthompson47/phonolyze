@@ -1,4 +1,3 @@
-//#![deny(elided_lifetimes_in_paths)]
 use wgpu::{util::DeviceExt, PrimitiveTopology};
 use winit::{
     dpi::PhysicalSize,
@@ -108,15 +107,6 @@ impl AnalysisLayerPass {
                 multiview: None,
             });
         let camera = Camera::new(&ctx.device);
-
-        let texture_views = gradient.texture_views(&ctx.device, &ctx.queue);
-        dbg!(texture_views.len());
-        let texture_refs = texture_views.iter().collect::<Vec<_>>();
-
-        let samplers = gradient.samplers(&ctx.device);
-        dbg!(samplers.len());
-        let sampler_refs = samplers.iter().collect::<Vec<_>>();
-
         let bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label,
             layout: &bind_group_layout,
@@ -131,11 +121,11 @@ impl AnalysisLayerPass {
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: wgpu::BindingResource::TextureViewArray(&texture_refs),
+                    resource: wgpu::BindingResource::TextureView(&gradient.texture_view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
-                    resource: wgpu::BindingResource::SamplerArray(&sampler_refs),
+                    resource: wgpu::BindingResource::Sampler(&gradient.sampler),
                 },
             ],
         });
@@ -313,6 +303,8 @@ impl Layer for AnalysisLayerPass {
     ) {
         if let Some(new_color_map) = state.update_color_map() {
             self.gradient.update(new_color_map.uniform(), queue);
+            self.gradient
+                .update_gradient_texture(new_color_map.data(), queue);
         }
     }
 

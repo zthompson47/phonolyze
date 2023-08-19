@@ -1,9 +1,3 @@
-struct Vertex {
-    clip_position: vec2<f32>,
-    level: f32,
-    pad: f32,
-};
-
 struct VertexInput {
     @location(0) clip_position: vec4<f32>,
 };
@@ -27,12 +21,15 @@ struct Camera {
 
 @group(0) @binding(0)
 var<uniform> gradient: Gradient;
+
 @group(0) @binding(1)
 var<uniform> camera: Camera;
+
 @group(0) @binding(2)
-var gradients: binding_array<texture_1d<f32>>;
+var gradient_texture: texture_1d<f32>;
+
 @group(0) @binding(3)
-var samplers: binding_array<sampler>;
+var gradient_sample: sampler;
 
 @vertex
 fn vertex_main(in: VertexInput) -> VertexOutput {
@@ -49,8 +46,8 @@ fn vertex_main(in: VertexInput) -> VertexOutput {
 @fragment
 fn fragment_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return textureSample(
-        gradients[gradient.index],
-        samplers[gradient.index],
+	gradient_texture,
+	gradient_sample,
         in.level,
     );
 }

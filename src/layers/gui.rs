@@ -1,5 +1,4 @@
 use strum::IntoEnumIterator;
-//use strum_macros::{Display, EnumIter};
 use winit::event::WindowEvent;
 
 use crate::{render::Renderer, uniforms::ColorMap};

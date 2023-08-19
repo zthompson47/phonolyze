@@ -1,3 +1,5 @@
+//#![deny(elided_lifetimes_in_paths)]
+
 mod audio;
 mod color;
 mod ease;
@@ -108,7 +110,7 @@ pub async fn main() {
     //let background_image = load_image("images/noise3.png").await.unwrap();
     let background_image = load_image("images/baba.png").await.unwrap();
 
-    let _background_image_pass = Box::new(ScaledImagePass::new(
+    let background_image_pass = Box::new(ScaledImagePass::new(
         background_image,
         &ctx.device,
         &ctx.queue,
@@ -151,7 +153,7 @@ pub async fn main() {
         ctx.scale_factor,
     ));
 
-    //ctx.layers.push(background_image_pass);
+    ctx.layers.push(background_image_pass);
     ctx.layers.push(analysis_pass);
     ctx.layers.push(meter_pass);
     ctx.layers.push(gui_pass);

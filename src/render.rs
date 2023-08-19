@@ -47,8 +47,7 @@ impl RenderView {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    //features: wgpu::Features::empty(),
-                    features: wgpu::Features::TEXTURE_BINDING_ARRAY,
+                    features: wgpu::Features::empty(),
                     limits: wgpu::Limits::downlevel_webgl2_defaults(),
                 },
                 None,
