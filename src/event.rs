@@ -7,14 +7,14 @@ use winit::{
 
 use crate::render::RenderView;
 
-pub struct EventHandler {
-    pub window: Window,
-    pub render_view: RenderView,
+pub struct EventHandler<'a> {
+    pub window: &'a Window,
+    pub render_view: RenderView<'a>,
     last_updated: instant::Instant,
 }
 
-impl EventHandler {
-    pub fn new(window: Window, render_view: RenderView) -> Self {
+impl<'a> EventHandler<'a> {
+    pub fn new(window: &'a Window, render_view: RenderView<'a>) -> Self {
         EventHandler {
             window,
             render_view,
@@ -37,7 +37,7 @@ impl EventHandler {
                         event,
                         &self.render_view.queue,
                         &mut self.render_view.state,
-                        &self.window,
+                        self.window,
                     );
 
                     if response.consumed {
@@ -107,7 +107,7 @@ impl EventHandler {
                 let delta = now - self.last_updated;
 
                 self.last_updated = now;
-                self.render_view.update(delta, &self.window);
+                self.render_view.update(delta, self.window);
                 //self.window.request_redraw();
             }
 
@@ -115,7 +115,7 @@ impl EventHandler {
                 event: WindowEvent::RedrawRequested,
                 window_id,
             } if window_id == self.window.id() => {
-                self.render_view.render(&self.window);
+                self.render_view.render(self.window);
             }
 
             _ => (),

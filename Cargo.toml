@@ -31,14 +31,15 @@ tailog = { git = "https://github.com/zthompson47/tailog" }
 
 #wgpu = "0.16.1"
 #winit = "0.28.3"
-#egui = { git = "https://github.com/emilk/egui" }
-#egui-wgpu = { git = "https://github.com/emilk/egui" }
-#egui-winit = { git = "https://github.com/emilk/egui", default-features = false }
+egui = { git = "https://github.com/emilk/egui" }
+egui-wgpu = { git = "https://github.com/emilk/egui" }
+egui-winit = { git = "https://github.com/emilk/egui", default-features = false }
+#wgpu = "0.18.0"
+wgpu = "0.19.1"
 winit = "0.29.10"
-wgpu = "0.18.0"
-egui = "0.25.0"
-egui-wgpu = "0.25.0"
-egui-winit = "0.25.0"
+#egui = "0.25.0"
+#egui-wgpu = "0.25.0"
+#egui-winit = "0.25.0"
 
 strum = "0.24.1"
 strum_macros = "0.24.3"

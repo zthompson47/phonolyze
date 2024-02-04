@@ -13,9 +13,9 @@ pub struct Renderer<'a> {
     pub scale_factor: f32,
 }
 
-pub struct RenderView {
+pub struct RenderView<'a> {
     size: PhysicalSize<u32>,
-    pub surface: wgpu::Surface,
+    pub surface: wgpu::Surface<'a>,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
@@ -24,17 +24,24 @@ pub struct RenderView {
     pub scale_factor: f32,
 }
 
-impl RenderView {
-    pub async fn new(window: &Window) -> Self {
+impl<'a> RenderView<'a> {
+    pub async fn new(window: &'a Window) -> Self {
         let scale_factor = window.scale_factor() as f32;
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
+            flags: wgpu::InstanceFlags::ALLOW_UNDERLYING_NONCOMPLIANT_ADAPTER,
             ..wgpu::InstanceDescriptor::default()
         });
         // SAFETY: `View` is created in the main thread and `window` remains valid
         // for the lifetime of `surface`.
-        let surface = unsafe { instance.create_surface(&window).unwrap() };
+        let surface = unsafe {
+            instance
+                .create_surface_unsafe(wgpu::SurfaceTargetUnsafe::from_window(window).unwrap())
+                .unwrap()
+        };
+        println!("--------------->>>>> {:?}", surface);
+
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -43,12 +50,13 @@ impl RenderView {
             })
             .await
             .unwrap();
+
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu::Features::empty(),
-                    limits: wgpu::Limits::downlevel_webgl2_defaults(),
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits::downlevel_webgl2_defaults(),
                 },
                 None,
             )
@@ -63,6 +71,7 @@ impl RenderView {
             present_mode: wgpu::PresentMode::Fifo,
             alpha_mode: capabilities.alpha_modes[0],
             view_formats: vec![capabilities.formats[0]],
+            desired_maximum_frame_latency: 2,
         };
 
         surface.configure(&device, &config);

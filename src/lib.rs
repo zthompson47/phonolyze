@@ -158,7 +158,7 @@ pub async fn main() {
     ctx.layers.push(meter_pass);
     ctx.layers.push(gui_pass);
 
-    let mut event_handler = EventHandler::new(window, ctx);
+    let mut event_handler = EventHandler::new(&window, ctx);
 
     let _ = event_loop.run(move |event, elwt| {
         event_handler.handle_event(event, elwt);
