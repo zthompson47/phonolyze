@@ -6,7 +6,8 @@ mod scale;
 
 pub use camera::Camera;
 pub use gradient::{ColorMap, Gradient, InnerGradient, NormDb};
-pub use progress::{InnerProgress, Progress};
+//pub use progress::{InnerProgress, Progress};
+pub use progress::Progress;
 pub use scale::Scale;
 
 /*trait Uniform {

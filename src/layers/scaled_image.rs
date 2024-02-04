@@ -2,7 +2,8 @@ use image::{DynamicImage, GenericImageView};
 use wgpu::util::DeviceExt;
 use winit::{
     dpi::PhysicalSize,
-    event::{VirtualKeyCode, WindowEvent},
+    event::WindowEvent,
+    keyboard::{Key, NamedKey},
 };
 
 use crate::{render::Renderer, uniforms::Scale};
@@ -269,35 +270,27 @@ impl Layer for ScaledImagePass {
         event: &WindowEvent,
         queue: &wgpu::Queue,
         _state: &mut LayerState,
+        _window: &winit::window::Window,
     ) -> egui_winit::EventResponse {
-        if let WindowEvent::KeyboardInput {
-            input:
-                winit::event::KeyboardInput {
-                    virtual_keycode,
-                    state: winit::event::ElementState::Pressed,
-                    ..
-                },
-            ..
-        } = event
-        {
-            match virtual_keycode {
-                Some(VirtualKeyCode::Left | VirtualKeyCode::H) => {
+        if let WindowEvent::KeyboardInput { event, .. } = event {
+            match event.logical_key.as_ref() {
+                Key::Named(NamedKey::ArrowLeft) | Key::Character("H") => {
                     self.scale.scale_x(0.01, queue);
                 }
 
-                Some(VirtualKeyCode::Right | VirtualKeyCode::L) => {
+                Key::Named(NamedKey::ArrowRight) | Key::Character("L") => {
                     self.scale.scale_x(-0.01, queue);
                 }
 
-                Some(VirtualKeyCode::Down | VirtualKeyCode::J) => {
+                Key::Named(NamedKey::ArrowDown) | Key::Character("J") => {
                     self.scale.scale_y(0.01, queue);
                 }
 
-                Some(VirtualKeyCode::Up | VirtualKeyCode::K) => {
+                Key::Named(NamedKey::ArrowUp) | Key::Character("K") => {
                     self.scale.scale_y(-0.01, queue);
                 }
 
-                Some(VirtualKeyCode::F) => {
+                Key::Character("F") => {
                     self.scale.unscale(queue);
                 }
 
@@ -321,12 +314,14 @@ impl Layer for ScaledImagePass {
         let mut render_pass = renderer
             .encoder
             .begin_render_pass(&wgpu::RenderPassDescriptor {
+                occlusion_query_set: None,
+                timestamp_writes: None,
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: renderer.view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                         load: match self.layer_mode {
                             LayerMode::AlphaBlend => wgpu::LoadOp::Load,
                             LayerMode::Background => wgpu::LoadOp::Clear(wgpu::Color {

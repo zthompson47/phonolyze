@@ -71,7 +71,7 @@ pub async fn main() {
     }
 
     let cli = Cli::parse();
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().unwrap();
     let window = WindowBuilder::new()
         .with_maximized(true)
         .build(&event_loop)
@@ -160,8 +160,8 @@ pub async fn main() {
 
     let mut event_handler = EventHandler::new(window, ctx);
 
-    event_loop.run(move |event, _, control_flow| {
-        event_handler.handle_event(event, control_flow);
+    let _ = event_loop.run(move |event, elwt| {
+        event_handler.handle_event(event, elwt);
     });
 }
 

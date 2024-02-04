@@ -1,6 +1,7 @@
 use winit::{
-    event::{Event, VirtualKeyCode, WindowEvent},
-    event_loop::ControlFlow,
+    event::{Event, WindowEvent},
+    event_loop::EventLoopWindowTarget,
+    keyboard::{Key, NamedKey},
     window::Window,
 };
 
@@ -21,7 +22,7 @@ impl EventHandler {
         }
     }
 
-    pub fn handle_event(&mut self, event: Event<()>, control_flow: &mut ControlFlow) {
+    pub fn handle_event(&mut self, event: Event<()>, elwt: &EventLoopWindowTarget<()>) {
         if let Event::WindowEvent {
             ref event,
             window_id,
@@ -36,6 +37,7 @@ impl EventHandler {
                         event,
                         &self.render_view.queue,
                         &mut self.render_view.state,
+                        &self.window,
                     );
 
                     if response.consumed {
@@ -61,14 +63,14 @@ impl EventHandler {
                 window_id,
             } if window_id == self.window.id() => {
                 dbg!(mods);
-                self.render_view.state.modifiers = mods;
+                self.render_view.state.modifiers = mods.state();
             }
 
             Event::WindowEvent {
                 event:
                     WindowEvent::ScaleFactorChanged {
                         scale_factor,
-                        new_inner_size: _,
+                        ..//inner_size_writer, // TODO: what is inner_size_writer?
                     },
                 window_id,
             } if window_id == self.window.id() => {
@@ -78,14 +80,16 @@ impl EventHandler {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 window_id,
-            } if window_id == self.window.id() => *control_flow = ControlFlow::Exit,
+            } if window_id == self.window.id() => elwt.exit(),
 
             Event::WindowEvent {
-                event: WindowEvent::KeyboardInput { input, .. },
+                event: WindowEvent::KeyboardInput { event, .. },
                 window_id,
             } if window_id == self.window.id() => {
-                if let Some(VirtualKeyCode::Escape | VirtualKeyCode::Q) = input.virtual_keycode {
-                    *control_flow = ControlFlow::Exit
+                if let Key::Named(NamedKey::Escape) | Key::Character("Q") =
+                    event.logical_key.as_ref()
+                {
+                    elwt.exit()
                 }
             }
 
@@ -98,7 +102,7 @@ impl EventHandler {
                 self.window.request_redraw();
             }
 
-            Event::MainEventsCleared => {
+            Event::AboutToWait => {
                 let now = instant::Instant::now();
                 let delta = now - self.last_updated;
 
@@ -107,7 +111,10 @@ impl EventHandler {
                 //self.window.request_redraw();
             }
 
-            Event::RedrawRequested(window_id) if window_id == self.window.id() => {
+            Event::WindowEvent {
+                event: WindowEvent::RedrawRequested,
+                window_id,
+            } if window_id == self.window.id() => {
                 self.render_view.render(&self.window);
             }
 

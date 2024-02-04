@@ -53,13 +53,13 @@ fn fragment_main(in: VertexOutput) -> @location(0) vec4<f32> {
 }
 
 fn grad_at(grad: mat4x4<f32>, domain: vec4<f32>, at: f32) -> vec4<f32> {
-    var grad = grad;
+    var vgrad = grad;
     var result_color = vec4<f32>();
 
     let domain_norm = domain[3] - domain[0];
 
     for (var i: i32 = 0; i < 4; i++) {
-        let channel = grad[i];
+        let channel = vgrad[i];
 
         for (var j: i32 = 0; j < 3; j++) {
             let domain_min = domain[j];

@@ -9,6 +9,7 @@ pub struct Gui {
     context: egui::Context,
     renderer: egui_wgpu::Renderer,
     window_state: egui_winit::State,
+    pixels_per_point: f32,
 }
 
 impl Gui {
@@ -18,14 +19,22 @@ impl Gui {
         texture_format: wgpu::TextureFormat,
         scale_factor: f32,
     ) -> Self {
+        let context = egui::Context::default();
+        let viewport_id = context.viewport_id();
+        let display_target = event_loop;
+        let native_pixels_per_point = Some(scale_factor);
+        let max_texture_side = None;
         Gui {
             context: egui::Context::default(),
             renderer: egui_wgpu::Renderer::new(device, texture_format, None, 1),
-            window_state: {
-                let mut window_state = egui_winit::State::new(event_loop);
-                window_state.set_pixels_per_point(scale_factor);
-                window_state
-            },
+            window_state: egui_winit::State::new(
+                context,
+                viewport_id,
+                display_target,
+                native_pixels_per_point,
+                max_texture_side,
+            ),
+            pixels_per_point: scale_factor,
         }
     }
 }
@@ -36,13 +45,19 @@ impl Layer for Gui {
         event: &WindowEvent,
         _queue: &wgpu::Queue,
         _state: &mut LayerState,
+        window: &winit::window::Window,
     ) -> egui_winit::EventResponse {
-        self.window_state.on_event(&self.context, event)
+        self.window_state.on_window_event(window, event)
     }
 
     fn render(&mut self, renderer: &mut Renderer, state: &mut LayerState) {
         let input = self.window_state.take_egui_input(renderer.window);
         let output = {
+            println!(
+                "-000--------------------{:?}---{:?}--------------------",
+                self.context.pixels_per_point(),
+                self.pixels_per_point
+            );
             self.context.run(input, |ctx| {
                 egui::Area::new("testitout").show(ctx, |ui| {
                     egui::ComboBox::from_label("Colormap")
@@ -57,12 +72,23 @@ impl Layer for Gui {
         };
 
         // Keep redrawing for animations.  TODO: set a timer for non-zero durations
-        if output.repaint_after.is_zero() {
-            renderer.window.request_redraw();
-        }
+        //if output.repaint_after.is_zero() {
+        renderer.window.request_redraw();
+        //}
+        println!(
+            "-000.555--------------------{:?}---{:?}--------------------",
+            self.context.pixels_per_point(),
+            self.pixels_per_point
+        );
 
-        let clipped_primitives: Vec<egui::epaint::ClippedPrimitive> =
-            self.context.tessellate(output.shapes);
+        let clipped_primitives: Vec<egui::epaint::ClippedPrimitive> = self
+            .context
+            .tessellate(output.shapes, output.pixels_per_point);
+        println!(
+            "-111-------------{:?}--{:?}----------------------------",
+            self.context.pixels_per_point(),
+            self.pixels_per_point
+        );
 
         for (id, image_delta) in &output.textures_delta.set {
             self.renderer
@@ -90,13 +116,15 @@ impl Layer for Gui {
             let mut render_pass = renderer
                 .encoder
                 .begin_render_pass(&wgpu::RenderPassDescriptor {
+                    occlusion_query_set: None,
+                    timestamp_writes: None,
                     label: None,
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: renderer.view,
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Load,
-                            store: true,
+                            store: wgpu::StoreOp::Store,
                         },
                     })],
                     depth_stencil_attachment: None,

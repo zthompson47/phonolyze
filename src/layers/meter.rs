@@ -5,7 +5,8 @@ use instant::{Duration, Instant};
 use wgpu::{util::DeviceExt, PrimitiveTopology};
 use winit::{
     dpi::PhysicalSize,
-    event::{VirtualKeyCode, WindowEvent},
+    event::WindowEvent,
+    keyboard::{Key, NamedKey},
     window::Window,
 };
 
@@ -141,21 +142,13 @@ impl Layer for MeterPass {
         event: &WindowEvent,
         _queue: &wgpu::Queue,
         _state: &mut LayerState,
+        _window: &winit::window::Window,
     ) -> egui_winit::EventResponse {
-        if let WindowEvent::KeyboardInput {
-            input:
-                winit::event::KeyboardInput {
-                    virtual_keycode,
-                    state: winit::event::ElementState::Pressed,
-                    ..
-                },
-            ..
-        } = event
-        {
-            match virtual_keycode {
-                Some(VirtualKeyCode::Space) => {}
-                Some(VirtualKeyCode::Right) => {}
-                Some(VirtualKeyCode::Left) => {}
+        if let WindowEvent::KeyboardInput { event, .. } = event {
+            match event.logical_key.as_ref() {
+                Key::Named(NamedKey::Space) => {}
+                Key::Named(NamedKey::ArrowRight) => {}
+                Key::Named(NamedKey::ArrowLeft) => {}
                 _ => {}
             }
         }
@@ -199,12 +192,14 @@ impl Layer for MeterPass {
         let mut render_pass = renderer
             .encoder
             .begin_render_pass(&wgpu::RenderPassDescriptor {
+                occlusion_query_set: None,
+                timestamp_writes: None,
                 label: Some("Meter"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: renderer.view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                         load: wgpu::LoadOp::Load,
                     },
                 })],

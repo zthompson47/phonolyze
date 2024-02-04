@@ -1,8 +1,8 @@
 use wgpu::{util::DeviceExt, PrimitiveTopology};
 use winit::{
     dpi::PhysicalSize,
-    event::{VirtualKeyCode, WindowEvent},
-    window::Window,
+    event::WindowEvent,
+    window::Window, keyboard::{Key, NamedKey},
 };
 
 use crate::{
@@ -218,60 +218,51 @@ impl Layer for AnalysisLayerPass {
         event: &WindowEvent,
         queue: &wgpu::Queue,
         state: &mut LayerState,
+        _window: &winit::window::Window,
     ) -> egui_winit::EventResponse {
-        if let WindowEvent::KeyboardInput {
-            input:
-                winit::event::KeyboardInput {
-                    virtual_keycode,
-                    state: winit::event::ElementState::Pressed,
-                    ..
-                },
-            ..
-        } = event
-        {
-            match virtual_keycode {
-                Some(VirtualKeyCode::Left | VirtualKeyCode::H) => {
-                    if state.modifiers.shift() {
+        if let WindowEvent::KeyboardInput { event, .. } = event {
+            match event.logical_key.as_ref() {
+                Key::Named(NamedKey::ArrowLeft) | Key::Character("H") => {
+                    if state.modifiers.shift_key() {
                         self.camera.move_x(-0.03, queue);
                     } else {
                         self.camera.scale_x(-0.01, queue);
                     }
                 }
 
-                Some(VirtualKeyCode::Right | VirtualKeyCode::L) => {
-                    if state.modifiers.shift() {
+                Key::Named(NamedKey::ArrowRight) | Key::Character("L") => {
+                    if state.modifiers.shift_key() {
                         self.camera.move_x(0.03, queue);
                     } else {
                         self.camera.scale_x(0.01, queue);
                     }
                 }
 
-                Some(VirtualKeyCode::Down | VirtualKeyCode::J) => {
-                    if state.modifiers.shift() {
+                Key::Named(NamedKey::ArrowDown) | Key::Character("J") => {
+                    if state.modifiers.shift_key() {
                         self.camera.move_y(-0.03, queue);
                     } else {
                         self.camera.scale_y(-0.01, queue);
                     }
                 }
 
-                Some(VirtualKeyCode::Up | VirtualKeyCode::K) => {
-                    if state.modifiers.shift() {
+                Key::Named(NamedKey::ArrowUp) | Key::Character("K") => {
+                    if state.modifiers.shift_key() {
                         self.camera.move_y(0.03, queue);
                     } else {
                         self.camera.scale_y(0.01, queue);
                     }
                 }
 
-                Some(VirtualKeyCode::M) if state.modifiers.logo() => {
+                Key::Character("M") if state.modifiers.super_key() => {
                     self.camera.zero(queue);
                 }
 
-                Some(VirtualKeyCode::N) if state.modifiers.logo() => {
+                Key::Character("N") if state.modifiers.super_key() => {
                     self.camera.fill(queue);
                 }
 
                 _ => {
-                    dbg!(virtual_keycode);
                     return egui_winit::EventResponse {
                         consumed: false,
                         repaint: false,
@@ -312,12 +303,14 @@ impl Layer for AnalysisLayerPass {
         let mut render_pass = renderer
             .encoder
             .begin_render_pass(&wgpu::RenderPassDescriptor {
+                occlusion_query_set: None,
+                timestamp_writes: None,
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: renderer.view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                         load: match self.layer_mode {
                             LayerMode::AlphaBlend => wgpu::LoadOp::Load,
                             LayerMode::Background => wgpu::LoadOp::Clear(wgpu::Color {

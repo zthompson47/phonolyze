@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
 
-use crate::{audio::PlaybackPosition, uniforms::ColorMap, render::Renderer, uniforms::Scale};
+use crate::{audio::PlaybackPosition, render::Renderer, uniforms::ColorMap, uniforms::Scale};
 
 #[allow(unused_variables)]
 pub trait Layer {
@@ -16,6 +16,7 @@ pub trait Layer {
         event: &WindowEvent,
         queue: &wgpu::Queue,
         state: &mut LayerState,
+        window: &winit::window::Window,
     ) -> egui_winit::EventResponse {
         egui_winit::EventResponse {
             consumed: false,
@@ -48,7 +49,7 @@ pub struct LayerState {
     pub prev_color_map: Option<ColorMap>,
     pub progress: Option<Arc<Mutex<PlaybackPosition>>>,
     pub scale: Option<Scale>,
-    pub modifiers: winit::event::ModifiersState,
+    pub modifiers: winit::keyboard::ModifiersState,
 }
 
 impl LayerState {
