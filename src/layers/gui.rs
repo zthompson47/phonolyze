@@ -99,7 +99,7 @@ impl Layer for Gui {
             self.renderer.free_texture(id);
         }
 
-        let screen_descriptor = egui_wgpu::renderer::ScreenDescriptor {
+        let screen_descriptor = egui_wgpu::ScreenDescriptor {
             size_in_pixels: [renderer.config.width, renderer.config.height],
             pixels_per_point: renderer.scale_factor,
         };
