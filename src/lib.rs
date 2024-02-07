@@ -1,5 +1,4 @@
 //#![deny(elided_lifetimes_in_paths)]
-
 mod audio;
 mod color;
 mod ease;
@@ -74,6 +73,7 @@ pub async fn main() {
     let event_loop = EventLoop::new().unwrap();
     let window = WindowBuilder::new()
         .with_maximized(true)
+        //.with_inner_size(winit::dpi::PhysicalSize::new(1280, 960))
         .build(&event_loop)
         .unwrap();
 
@@ -82,15 +82,19 @@ pub async fn main() {
     {
         // Winit prevents sizing with CSS, so we have to set
         // the size manually when on web.
-        window.set_inner_size(winit::dpi::PhysicalSize::new(1280, 960));
 
         use winit::platform::web::WindowExtWebSys;
+        //window.set_inner_size(winit::dpi::PhysicalSize::new(1280, 960));
 
         web_sys::window()
             .and_then(|win| win.document())
             .and_then(|doc| {
                 let dst = doc.get_element_by_id("phonolyze").unwrap();
-                let canvas = web_sys::Element::from(window.canvas());
+
+                let canvas = window.canvas().unwrap();
+                //let mut surface = Surface::from_canvas(canvas.clone()).unwrap();
+
+                let canvas = web_sys::Element::from(window.canvas().unwrap());
                 dst.append_child(&canvas).ok().unwrap();
                 Some(())
             })

@@ -13,47 +13,43 @@ crate-type = ["cdylib", "rlib"]
 anyhow = "1.0.71"
 bytemuck = { version = "1.13.1", features = ["derive"] }
 clap = { version = "4.3.0", features = ["derive"] }
+colorgrad = "0.6.2"
 cpal = { version = "0.15.2", features = ["wasm-bindgen"] }
+egui = { git = "https://github.com/emilk/egui" }
+egui-wgpu = { git = "https://github.com/emilk/egui" }
+egui-winit = { git = "https://github.com/emilk/egui", default-features = false }
 env_logger = "0.10.0"
 hound = "3.5.0"
 image = "0.24.6"
-instant = "0.1.12"
+instant = { version = "0.1.12", features = [ "wasm-bindgen" ] }
 log = "0.4.17"
 noize = { git = "https://github.com/zthompson47/noize" }
 num = "0.4.0"
 ordered-float = "3.7.0"
+palette = "0.7.2"
 plotters = "0.3.4"
 pollster = "0.3.0"
 rtrb = "0.2.3"
 rustfft = "6.1.0"
-symphonia = { version = "0.5.2", features = ["all"] }
-tailog = { git = "https://github.com/zthompson47/tailog" }
-
-#wgpu = "0.16.1"
-#winit = "0.28.3"
-egui = { git = "https://github.com/emilk/egui" }
-egui-wgpu = { git = "https://github.com/emilk/egui" }
-egui-winit = { git = "https://github.com/emilk/egui", default-features = false }
-#wgpu = "0.18.0"
-wgpu = "0.19.1"
-winit = "0.29.10"
-#egui = "0.25.0"
-#egui-wgpu = "0.25.0"
-#egui-winit = "0.25.0"
-
 strum = "0.24.1"
 strum_macros = "0.24.3"
-colorgrad = "0.6.2"
-palette = "0.7.2"
+symphonia = { version = "0.5.2", features = ["all"] }
+tailog = { git = "https://github.com/zthompson47/tailog" }
+wgpu = "0.19.1"
+winit = "0.29.10"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.7"
 console_log = "1.0.0"
 reqwest = "0.11.17"
-wgpu = { version = "0.16.1", features = ["webgl"]}
-wasm-bindgen = "0.2.84"
-wasm-bindgen-futures = "0.4.34"
-web-sys = { version = "0.3.61", features = [
+wgpu = { version = "0.19.1", default-features = false, features = ["webgl"] }
+#wgpu = { version = "0.19.1", features = ["webgl", "webgpu"] }
+#wasm-bindgen = "0.2.84"
+wasm-bindgen = "0.2.90"
+#wasm-bindgen-futures = "0.4.34"
+wasm-bindgen-futures = "0.4.40"
+#web-sys = { version = "0.3.61", features = [
+web-sys = { version = "0.3.67", features = [
     "Document",
     "Element",
     "Location",
